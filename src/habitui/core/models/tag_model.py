@@ -10,7 +10,7 @@ from typing import Any
 from pydantic import Field, ValidationError
 
 from habitui.config.app_config_model import TagSettings
-from habitui.ui.custom_logger import log
+from habitui.custom_logger import log
 
 from .base_enums import Attribute, TagsCategory, TagsTrait
 from .base_model import HabiTuiBaseModel, HabiTuiSQLModel

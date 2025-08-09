@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from pydantic import ValidationError
 
-from habitui.ui.custom_logger import log
+from habitui.custom_logger import log
 
 from .app_config_model import ApplicationSettings
 

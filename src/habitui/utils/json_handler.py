@@ -5,7 +5,7 @@ from typing import Any, TypeVar
 
 from pydantic import BaseModel, ValidationError
 
-from habitui.ui.custom_logger import log
+from habitui.custom_logger import log
 
 T = TypeVar("T", bound=BaseModel)
 JSONSerializable = dict[str, Any] | list[Any]

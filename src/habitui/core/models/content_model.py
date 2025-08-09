@@ -11,7 +11,7 @@ from pydantic import Field as PydanticField
 from pydantic import ValidationError, field_validator
 from sqlmodel import Column, Field
 
-from habitui.ui.custom_logger import log
+from habitui.custom_logger import log
 
 from .base_model import HabiTuiBaseModel, HabiTuiSQLModel
 from .validators import PydanticJSON, replace_emoji_shortcodes

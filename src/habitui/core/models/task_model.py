@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, Any, cast
 from pydantic import PrivateAttr, field_validator
 from sqlmodel import Column, Field
 
-from habitui.ui.custom_logger import log
+from habitui.custom_logger import log
 from habitui.utils import DateTimeHandler
 
 from .base_enums import DailyStatus, Frequency, HabitStatus, RewardStatus, TaskStatus, TodoStatus

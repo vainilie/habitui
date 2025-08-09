@@ -10,7 +10,7 @@ from box import Box
 from pydantic import ValidationError, field_validator
 from sqlmodel import Column, Field
 
-from habitui.ui.custom_logger import log
+from habitui.custom_logger import log
 
 from .base_enums import Frequency, TaskType
 from .base_model import HabiTuiBaseModel, HabiTuiSQLModel

@@ -7,7 +7,7 @@ from rich.console import Console
 from rich.style import Style
 from rich.theme import Theme
 
-from .custom_logger import log
+from habitui.custom_logger import log
 
 # ─── Configuration & Types ─────────────────────────────────────────────────────
 
@@ -183,6 +183,47 @@ class StyleMapper:
             "status.neutral": Style(color=cls._get_color(theme_data, "yellow")),
         }
 
+    def map_json_to_textual_colors(self, theme_data: dict[str, Any]) -> dict[str, str]:
+        """Map JSON theme colors to Textual theme structure."""
+        color_mapping = {
+            "primary": theme_data.get("purple", "#c4a7e7"),
+            "secondary": theme_data.get("cyan", "#9ccfd8"),
+            "accent": theme_data.get("yellow", "#f6c177"),
+            "warning": theme_data.get("yellow", "#f6c177"),
+            "error": theme_data.get("red", "#eb6f92"),
+            "success": theme_data.get("green", "#9ccfd8"),
+            "foreground": theme_data.get("foreground", theme_data.get("white", "#e0def4")),
+            "background": theme_data.get("background", "#191724"),
+            "surface": theme_data.get("black", "#1f1d2e"),
+            "panel": theme_data.get("brightBlack", "#26233a"),
+        }
+
+        # Only include non-None values
+        return {k: v for k, v in color_mapping.items() if v is not None}
+
+    def create_textual_variables(self, theme_data: dict[str, Any]) -> dict[str, str]:
+        """Create Textual-specific CSS variables from theme data."""
+        background = theme_data.get("background", "#191724")
+        foreground = theme_data.get("foreground", theme_data.get("white", "#e0def4"))
+        primary = theme_data.get("purple", "#c4a7e7")
+        selection_background = theme_data.get("selectionBackground", "#6e6a86")
+        border_color = theme_data.get("blue", "#525fb8")
+        border_blurred = theme_data.get("brightBlack", "#000000")
+
+        return {
+            "input-cursor-foreground": background,
+            "input-cursor-background": foreground,
+            "input-selection-background": f"{selection_background} 30%",
+            "border": border_color,
+            "border-blurred": border_blurred,
+            "footer-background": theme_data.get("black", "#1f1d2e"),
+            "block-cursor-foreground": background,
+            "block-cursor-text-style": "none",
+            "button-color-foreground": background,
+            "footer-key-foreground": primary,
+            "scrollbar": border_color,
+        }
+
 
 class ConsoleManager:
     """Manage rich Console instances and their themes."""
@@ -283,9 +324,3 @@ class ConsoleManager:
             log.opt(exception=True).error(f"Error switching theme: {e}")
 
             return False
-
-    def get_available_themes(self) -> list[str]:
-        """Returns a list of all available theme names."""
-        themes = self._load_themes()
-
-        return list(themes.keys())

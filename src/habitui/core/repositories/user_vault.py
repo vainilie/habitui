@@ -21,7 +21,7 @@ from habitui.core.models import (
     UserTasksOrder,
     UserTimestamps,
 )
-from habitui.ui.custom_logger import log
+from habitui.custom_logger import log
 
 from .base_vault import DATABASE_FILE_NAME, BaseVault, SaveStrategy
 

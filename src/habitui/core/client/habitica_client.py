@@ -3,7 +3,7 @@
 
 from typing import Any
 
-from habitui.ui.custom_logger import log
+from habitui.custom_logger import log
 
 from .habitica_api import HabiticaAPI
 from .mixin.challenge_mixin import ChallengeMixin

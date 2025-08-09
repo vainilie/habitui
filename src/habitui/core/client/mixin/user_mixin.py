@@ -6,7 +6,7 @@ from typing import Any, TypeVar, cast
 
 from habitui.core.client.api_models import HabiticaResponse
 from habitui.core.models import HabiTuiBaseModel
-from habitui.ui.custom_logger import log
+from habitui.custom_logger import log
 
 T_ClientPydanticModel = TypeVar("T_ClientPydanticModel", bound=HabiTuiBaseModel)
 SuccessfulResponseData = dict[str, Any] | list[dict[str, Any]] | list[Any] | HabiticaResponse | None

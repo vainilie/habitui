@@ -7,8 +7,8 @@ from sqlmodel import Session, select
 from habitui.config.app_config import app_config
 from habitui.core.models import HabiTuiSQLModel
 from habitui.core.models.content_model import ContentCollection, GearItem, QuestItem, SpellItem
+from habitui.custom_logger import log
 from habitui.ui import icons
-from habitui.ui.custom_logger import log
 
 from .base_vault import DATABASE_FILE_NAME, BaseVault, SaveStrategy
 

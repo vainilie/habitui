@@ -7,7 +7,7 @@ from typing import Any, TypeVar
 
 from habitui.core.client.api_models import HabiticaResponse
 from habitui.core.models import ChallengeCollection, HabiTuiBaseModel, TaskCollection
-from habitui.ui.custom_logger import log
+from habitui.custom_logger import log
 
 T_Item = TypeVar("T_Item")
 T_ListModel = TypeVar("T_ListModel", bound=HabiTuiBaseModel)

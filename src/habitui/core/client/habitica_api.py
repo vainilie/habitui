@@ -12,7 +12,7 @@ import httpx
 from pydantic import BaseModel, ValidationError
 
 from habitui.config.app_config import app_config
-from habitui.ui.custom_logger import log
+from habitui.custom_logger import log
 
 from .api_models import HabiticaAPIError, HabiticaResponse
 from .rate_limiter import RateLimiter, RequestExecutionStats

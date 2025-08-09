@@ -7,7 +7,7 @@ from uuid import UUID as TYPE_UUID
 from pydantic import Field, SecretStr, computed_field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from habitui.ui.custom_logger import log
+from habitui.custom_logger import log
 
 DUMMY_UUID = TYPE_UUID("00000000-0000-0000-0000-000000000000")
 DUMMY_TOKEN = SecretStr("deadbeef-dead-4bad-beef-deadbeef0000")

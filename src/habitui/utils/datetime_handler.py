@@ -8,7 +8,7 @@ import dateutil.parser
 from dateutil.tz import tzlocal
 from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, computed_field
 
-from habitui.ui.custom_logger import log
+from habitui.custom_logger import log
 
 SECONDS_IN_MINUTE: int = 60
 SECONDS_IN_HOUR: int = 3600

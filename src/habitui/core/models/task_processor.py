@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Any
 from box import Box
 from pydantic import ValidationError
 
-from habitui.ui.custom_logger import log
+from habitui.custom_logger import log
 
 from .base_enums import RewardStatus
 from .task_model import ChallengeInTask, TaskChecklist, TaskCollection, TaskDaily, TaskHabit, TaskReward, TaskTodo

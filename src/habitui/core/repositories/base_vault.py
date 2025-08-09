@@ -10,8 +10,8 @@ from sqlmodel import Session, col, func, select
 
 from habitui.config.app_config import app_config
 from habitui.core.models import ContentMetadata, HabiTuiSQLModel
+from habitui.custom_logger import log
 from habitui.ui import icons
-from habitui.ui.custom_logger import log
 
 T_Model = TypeVar("T_Model", bound=HabiTuiSQLModel)
 T_Collection = TypeVar("T_Collection")

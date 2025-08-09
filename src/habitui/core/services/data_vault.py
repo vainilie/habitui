@@ -21,7 +21,7 @@ from habitui.core.repositories import (
     TaskVault,
     UserVault,
 )
-from habitui.ui.custom_logger import log
+from habitui.custom_logger import log
 
 SuccessfulResponseData = dict[str, Any] | list[dict[str, Any]] | list[Any] | None
 VaultType = Literal["user", "party", "content", "tasks", "challenges", "tags"]

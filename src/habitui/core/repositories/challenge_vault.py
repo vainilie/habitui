@@ -15,8 +15,8 @@ from habitui.core.models import (
     ChallengeTaskTodo,
     HabiTuiSQLModel,
 )
+from habitui.custom_logger import log
 from habitui.ui import icons
-from habitui.ui.custom_logger import log
 
 from .base_vault import DATABASE_FILE_NAME, BaseVault, SaveStrategy
 

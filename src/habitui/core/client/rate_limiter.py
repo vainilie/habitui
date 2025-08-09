@@ -5,7 +5,7 @@ import asyncio
 import time
 from typing import TYPE_CHECKING, Any
 
-from habitui.ui.custom_logger import log
+from habitui.custom_logger import log
 
 if TYPE_CHECKING:
     import httpx

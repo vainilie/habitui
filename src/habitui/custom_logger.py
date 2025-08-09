@@ -9,7 +9,7 @@ from typing import Any
 from loguru import logger
 from rich.text import Text
 
-from .console import console
+from .ui.console import console
 
 # ─── Configuration ─────────────────────────────────────────────────────────────
 
