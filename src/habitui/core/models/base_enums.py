@@ -1,10 +1,10 @@
 # ♥♥─── Model Enums ────────────────────────────────────────────────────
 from __future__ import annotations
 
-from enum import Enum, StrEnum
+from enum import Enum
 
 
-class TaskType(StrEnum):
+class TaskType(str, Enum):
 	"""Enumeration for different types of tasks."""
 
 	HABIT = "habit"
@@ -13,14 +13,14 @@ class TaskType(StrEnum):
 	REWARD = "reward"
 
 
-class ScoreDirection(StrEnum):
+class ScoreDirection(str, Enum):
 	"""Enumeration for the scoring direction of a task."""
 
 	UP = "up"
 	DOWN = "down"
 
 
-class Attribute(StrEnum):
+class Attribute(str, Enum):
 	"""Enumeration for character attributes."""
 
 	STRENGTH = "str"
@@ -38,7 +38,7 @@ class Priority(float, Enum):
 	HARD = 2.0
 
 
-class Frequency(StrEnum):
+class Frequency(str, Enum):
 	"""Enumeration for the frequency of recurring tasks."""
 
 	DAILY = "daily"
@@ -47,7 +47,7 @@ class Frequency(StrEnum):
 	YEARLY = "yearly"
 
 
-class TodoStatus(StrEnum):
+class TodoStatus(str, Enum):
 	"""Status categories for To-Do tasks."""
 
 	COMPLETED = "completed"
@@ -60,7 +60,7 @@ class TodoStatus(StrEnum):
 	SOMEDAY = "someday"
 
 
-class DailyStatus(StrEnum):
+class DailyStatus(str, Enum):
 	"""Status categories for Daily tasks."""
 
 	COMPLETED_TODAY = "completed_today"
@@ -74,7 +74,7 @@ class DailyStatus(StrEnum):
 	SCHEDULED_FUTURE = "scheduled_future"
 
 
-class HabitStatus(StrEnum):
+class HabitStatus(str, Enum):
 	"""Qualitative evaluation of Habits based on value."""
 
 	NEUTRAL = "neutral"
@@ -86,14 +86,14 @@ class HabitStatus(StrEnum):
 	NEGLECTED = "neglected"
 
 
-class RewardStatus(StrEnum):
+class RewardStatus(str, Enum):
 	"""Status of a reward task based on affordability."""
 
 	AFFORDABLE = "affordable"
 	UNAFFORDABLE = "unaffordable"
 
 
-class TaskStatus(StrEnum):
+class TaskStatus(str, Enum):
 	"""General-purpose task status for subtasks."""
 
 	COMPLETED = "completed"
@@ -107,28 +107,28 @@ class TaskStatus(StrEnum):
 	SOMEDAY = "someday"
 
 
-class TaskKeepOption(StrEnum):
+class TaskKeepOption(str, Enum):
 	"""Options for deciding whether to keep or remove individual tasks."""
 
 	KEEP = "keep"
 	REMOVE = "remove"
 
 
-class ChallengeTaskKeepOption(StrEnum):
+class ChallengeTaskKeepOption(str, Enum):
 	"""Options for managing tasks when a user leaves a challenge."""
 
 	KEEP_ALL = "keep-all"
 	REMOVE_ALL = "remove-all"
 
 
-class TagsCategory(StrEnum):
+class TagsCategory(str, Enum):
 	"""Fixed categories for root parent tags."""
 
 	ATTRIBUTE = "ATTRIBUTE"
 	OWNERSHIP = "OWNERSHIP"
 
 
-class TagsTrait(StrEnum):
+class TagsTrait(str, Enum):
 	CHALLENGE = "challenge"
 	PERSONAL = "personal"
 	LEGACY = "legacy"

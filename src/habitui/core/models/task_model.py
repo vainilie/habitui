@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import uuid
 from typing import TYPE_CHECKING, Any, cast
+from datetime import date, datetime
 
 from pydantic import PrivateAttr, field_validator
 from sqlmodel import Field, Column
@@ -17,12 +18,12 @@ from .validators import PydanticJSON, habit_status, normalize_attribute, calcula
 
 
 if TYPE_CHECKING:
-	from datetime import date, datetime
 	from collections.abc import Iterator
 
 	from box import Box
 
 	from .user_model import UserCollection
+
 
 SuccessfulResponseData = dict[str, Any] | list[dict[str, Any]] | list[Any] | None
 
@@ -407,7 +408,7 @@ class TaskCollection(HabiTuiBaseModel):
 				if task.id == task_id:
 					deleted_task = task_list.pop(i)
 					if (
-						isinstance(deleted_task, TaskTodo | TaskDaily)
+						isinstance(deleted_task, (TaskTodo, TaskDaily))
 						and hasattr(deleted_task, "checklist")
 						and deleted_task.checklist
 					):
@@ -594,7 +595,7 @@ class TaskCollection(HabiTuiBaseModel):
 		:returns: A tuple containing the new TaskChecklist and the updated parent task, or None if invalid.
 		"""
 		parent_task = self.get_task_by_id(task_id)
-		if not isinstance(parent_task, TaskTodo | TaskDaily):
+		if not isinstance(parent_task, (TaskTodo, TaskDaily)):
 			log.warning("Task {} is not a Todo or Daily; cannot add checklist.", task_id)
 			return None
 

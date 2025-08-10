@@ -30,7 +30,7 @@ class HabiticaApp(App):
 
 	def on_mount(self) -> None:
 		"""Actions to perform when the app is mounted."""
-		self.title = "PYXABIT 󰞇"
+		self.title = "Habitica - TUI"
 		self.theme = "Rose Pine"
 
 		self.push_screen(MainScreen())

@@ -6,11 +6,11 @@ import json
 from typing import Any
 from pathlib import Path
 
+from loguru import logger as log
+
 from rich.style import Style
 from rich.theme import Theme
 from rich.console import Console
-
-from habitui.custom_logger import log
 
 
 # ─── Configuration & Types ─────────────────────────────────────────────────────

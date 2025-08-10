@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Self
+import datetime
 
 from box import Box
 from humps import decamelize
@@ -16,8 +17,6 @@ from .message_model import UserMessage
 
 
 if TYPE_CHECKING:
-	import datetime
-
 	from .content_model import QuestItem, SpellItem, ContentCollection
 
 

@@ -18,6 +18,7 @@ from habitui.config.app_config import app_config
 if TYPE_CHECKING:
 	from collections.abc import Iterable
 
+	from sqlalchemy.engine import Engine
 
 T_Model = TypeVar("T_Model", bound=HabiTuiSQLModel)
 T_Collection = TypeVar("T_Collection")
@@ -56,7 +57,7 @@ class BaseVault[T_Collection](ABC):
 		echo: bool = False,
 	) -> None:
 		"""Initialize the database engine and create tables if they don't exist."""
-		self.engine = create_engine(db_url, echo=echo)
+		self.engine: Engine = create_engine(db_url, echo=echo)
 		self.vault_name: str = vault_name
 		self.timeout: timedelta = cache_time
 		HabiTuiSQLModel.metadata.create_all(self.engine)

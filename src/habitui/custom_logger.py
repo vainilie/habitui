@@ -12,6 +12,7 @@ from rich.text import Text
 
 from .ui.console import console
 
+
 if TYPE_CHECKING:
 	from collections.abc import Callable
 
@@ -120,11 +121,11 @@ class MinimalLogger:
 
 		time_part = Text(time_str, style="log.time")
 		separator = Text("|", style="log.separator")
-		module_part = Text(f"{module_str:<15}", style="log.module")
+		module_part = Text(f"{module_str}", style="log.module")
 		icon_part = Text(f"{level_config['icon']:<2}", style=f"log.level.{level_name.lower()}")
 		message_part = Text.from_markup(message_text, style=f"log.level.{level_name.lower()}")
 
-		self.console.print(time_part, separator, module_part, icon_part, message_part, sep="", end="\n")
+		self.console.print(time_part, separator, module_part, icon_part, message_part, sep=" ", end="\n")
 
 	def _setup_stdlib_logging(self) -> None:
 		"""Integrate standard Python logging with Loguru."""

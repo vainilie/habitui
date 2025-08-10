@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Self
+from typing import Any, Self
+import datetime
 
 from box import Box
 from pydantic import model_validator
@@ -12,10 +13,6 @@ from habitui.config.app_config import app_config
 
 from .base_model import HabiTuiSQLModel
 from .validators import PydanticJSON, parse_datetime, replace_emoji_shortcodes
-
-
-if TYPE_CHECKING:
-	import datetime
 
 
 # ─── Base Message Model ───────────────────────────────────────────────────────
