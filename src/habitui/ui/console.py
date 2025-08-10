@@ -1,23 +1,25 @@
 # ♥♥─── Global Console and Utilities ───────────────────────────────────────────
+from __future__ import annotations
+
 from enum import Enum
 from typing import Any
 
 from rich.style import Style
 from rich.traceback import install as install_rich_traceback
 
-from .theme_manager import ConsoleManager
 from .themed_icons import Icons
+from .theme_manager import ConsoleManager
 
 
 # ─── Definitions ─────────────────────────────────────────────────────────────
 class IconStyle(str, Enum):
-    """Enumeration for available icon styles."""
+	"""Enumeration for available icon styles."""
 
-    SIMPLE = "simple"
-    CIRCLE = "circle"
-    SQUARE = "square"
-    CIRCLE_OUTLINE = "circle_outline"
-    SQUARE_OUTLINE = "square_outline"
+	SIMPLE = "simple"
+	CIRCLE = "circle"
+	SQUARE = "square"
+	CIRCLE_OUTLINE = "circle_outline"
+	SQUARE_OUTLINE = "square_outline"
 
 
 # ─── Initialization ────────────────────────────────────────────────────────────
@@ -30,55 +32,55 @@ install_rich_traceback(console=console, show_locals=False, word_wrap=True, extra
 
 # ─── Core Functions ────────────────────────────────────────────────────────────
 def switch_theme(name: str) -> None:
-    """Switch the active console theme."""
-    global console
+	"""Switch the active console theme."""
+	global console  # noqa: PLW0603
 
-    if not theme_manager.switch_theme(console, name):
-        available = theme_manager.get_available_themes()
-        msg = f"Theme '{name}' not found. Available: {available}"
+	if not theme_manager.switch_theme(console, name):
+		available = theme_manager.get_available_themes()
+		msg = f"Theme '{name}' not found. Available: {available}"
 
-        raise ValueError(msg)
+		raise ValueError(msg)
 
-    console = theme_manager.create_console(name)
+	console = theme_manager.create_console(name)
 
 
 def switch_icons(style: IconStyle) -> None:
-    """Switch the active icon set."""
-    global icons
+	"""Switch the active icon set."""
+	global icons  # noqa: PLW0603
 
-    icon_map = {
-        IconStyle.SIMPLE: Icons.simple,
-        IconStyle.CIRCLE: Icons.circle,
-        IconStyle.SQUARE: Icons.square,
-        IconStyle.CIRCLE_OUTLINE: Icons.circle_outline,
-        IconStyle.SQUARE_OUTLINE: Icons.square_outline,
-    }
+	icon_map = {
+		IconStyle.SIMPLE: Icons.simple,
+		IconStyle.CIRCLE: Icons.circle,
+		IconStyle.SQUARE: Icons.square,
+		IconStyle.CIRCLE_OUTLINE: Icons.circle_outline,
+		IconStyle.SQUARE_OUTLINE: Icons.square_outline,
+	}
 
-    icons = icon_map[style]
+	icons = icon_map[style]
 
 
 # ─── Console Utilities ─────────────────────────────────────────────────────────
 def get_style_obj_with_console(style_name: str) -> Style:
-    """Safely get a Style object from the console, returning an empty style on failure."""
-    try:
-        style = console.get_style(style_name)
+	"""Safely get a Style object from the console, returning an empty style on failure."""
+	try:
+		style = console.get_style(style_name)
 
-    except Exception:
-        style = Style()
+	except Exception:
+		style = Style()
 
-    return style
+	return style
 
 
-def print(*args: Any, **kwargs: Any) -> None:
-    """Print to the console using Rich."""
-    console.print(*args, **kwargs)
+def print(*args: Any, **kwargs: Any) -> None:  # noqa: A001
+	"""Print to the console using Rich."""
+	console.print(*args, **kwargs)
 
 
 def clear() -> None:
-    """Clear the console screen."""
-    console.clear()
+	"""Clear the console screen."""
+	console.clear()
 
 
 def bell() -> None:
-    """Make the terminal bell sound."""
-    console.bell()
+	"""Make the terminal bell sound."""
+	console.bell()

@@ -249,7 +249,8 @@ class DataVault:
         try:
             user_content = await self.client.get_current_user_data()
             temp_user = UserCollection.from_api_data(
-                cast("dict", user_content), cast("ContentCollection", self.game_content)
+                cast("dict", user_content),
+                cast("ContentCollection", self.game_content),
             )
             self.user_vault.save(temp_user, mode, debug)
             self.user = self._load_from_database("user")
@@ -307,7 +308,8 @@ class DataVault:
             for ibx in inbox_content:
                 user_content["inbox"]["messages"].update({ibx.get("_id"): ibx})
             temp_user = UserCollection.from_api_data(
-                cast("dict", user_content), cast("ContentCollection", self.game_content)
+                cast("dict", user_content),
+                cast("ContentCollection", self.game_content),
             )
             self.user_vault.save(temp_user, mode, debug)
             self.user = self._load_from_database("user")
@@ -348,7 +350,8 @@ class DataVault:
         try:
             tasks_content = await self.client.get_user_tasks_data()
             temp_tasks = TaskCollection.from_api_data(
-                cast("SuccessfulResponseData", tasks_content), cast("UserCollection", self.user)
+                cast("SuccessfulResponseData", tasks_content),
+                cast("UserCollection", self.user),
             )
             self.task_vault.save(temp_tasks, mode, debug)
             self.tasks = self._load_from_database("tasks")
@@ -428,7 +431,9 @@ class DataVault:
         try:
             challenge_content = await self.client.get_all_user_challenges_data()
             temp_challenges = ChallengeCollection.from_api_data(
-                challenges_data=challenge_content, user=self.user, tasks=self.tasks
+                challenges_data=challenge_content,
+                user=self.user,
+                tasks=self.tasks,
             )
             self.challenge_vault.save(temp_challenges, mode, debug)
             self.challenges = self._load_from_database("challenges")
@@ -445,7 +450,7 @@ class DataVault:
 
     # ─── Public Update Methods ───────────────────────────────────────────────────
     async def update_tags_only(self, mode: SaveStrategy = "smart", debug: bool = False, force: bool = False) -> None:
-        """Updates only the tags data without affecting other data.
+        """Update only the tags data without affecting other data.
 
         :param mode: The saving strategy to use (e.g., "smart", "overwrite").
         :param debug: If True, enable debug logging for the operation.
@@ -457,7 +462,7 @@ class DataVault:
         log.success("Tags update completed")
 
     async def update_tasks_only(self, mode: SaveStrategy = "smart", debug: bool = False, force: bool = False) -> None:
-        """Updates only the tasks data without affecting other data.
+        """Update only the tasks data without affecting other data.
 
         :param mode: The saving strategy to use (e.g., "smart", "overwrite").
         :param debug: If True, enable debug logging for the operation.
@@ -473,9 +478,13 @@ class DataVault:
         log.success("Tasks update completed")
 
     async def update_user_only(
-        self, mode: SaveStrategy = "smart", debug: bool = False, force: bool = False, with_inbox: bool = False
+        self,
+        mode: SaveStrategy = "smart",
+        debug: bool = False,
+        force: bool = False,
+        with_inbox: bool = False,
     ) -> None:
-        """Updates only the user data without affecting other data.
+        """Update only the user data without affecting other data.
 
         :param mode: The saving strategy to use (e.g., "smart", "overwrite").
         :param debug: If True, enable debug logging for the operation.
@@ -497,7 +506,7 @@ class DataVault:
         log.success("User data update completed")
 
     async def update_party_only(self, mode: SaveStrategy = "smart", debug: bool = False, force: bool = False) -> None:
-        """Updates only the party data without affecting other data.
+        """Update only the party data without affecting other data.
 
         :param mode: The saving strategy to use (e.g., "smart", "overwrite").
         :param debug: If True, enable debug logging for the operation.
@@ -509,9 +518,12 @@ class DataVault:
         log.success("Party data update completed")
 
     async def update_challenges_only(
-        self, mode: SaveStrategy = "smart", debug: bool = False, force: bool = False
+        self,
+        mode: SaveStrategy = "smart",
+        debug: bool = False,
+        force: bool = False,
     ) -> None:
-        """Updates only the challenges data without affecting other data.
+        """Update only the challenges data without affecting other data.
 
         :param mode: The saving strategy to use (e.g., "smart", "overwrite").
         :param debug: If True, enable debug logging for the operation.
@@ -531,7 +543,7 @@ class DataVault:
         log.success("Challenges update completed")
 
     async def update_content_only(self, mode: SaveStrategy = "smart", debug: bool = False, force: bool = False) -> None:
-        """Updates only the game content without affecting other data.
+        """Update only the game content without affecting other data.
 
         :param mode: The saving strategy to use (e.g., "smart", "overwrite").
         :param debug: If True, enable debug logging for the operation.
@@ -551,10 +563,7 @@ class DataVault:
         with_inbox: bool = False,
         with_challenges: bool = False,
     ) -> None:
-        """Main data fetching orchestration with Single Source of Truth pattern.
-
-        This method ensures all data is consistently loaded from the database
-        after being saved, maintaining session integrity and data consistency.
+        """Fetch main data orchestration with Single Source of Truth pattern.
 
         :param mode: The saving strategy to use.
         :param debug: Whether to enable debug mode for saving.
@@ -620,7 +629,10 @@ class DataVault:
         return self
 
     async def __aexit__(
-        self, exc_type: type[BaseException] | None, exc_val: BaseException | None, exc_tb: object
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: object,
     ) -> None:
         """Context manager exit - log completion and cleanup.
 
@@ -702,7 +714,7 @@ class DataVault:
 
     # ─── Public Refresh/Sync Methods ─────────────────────────────────────────────
     async def refresh_quick(self, force: bool = False) -> None:
-        """Performs a quick refresh of essential user, tasks, and tags data.
+        """Perform a quick refresh of essential user, tasks, and tags data.
 
         This method is suitable for frequent updates where full data is not
         immediately required.
@@ -714,7 +726,7 @@ class DataVault:
         await self._get_tags_data("smart", False, force)
 
     async def refresh_standard(self, force: bool = False) -> None:
-        """Performs a standard refresh of all data except inbox and challenges.
+        """Perform a standard refresh of all data except inbox and challenges.
 
         This method is a good balance for general use cases.
 
@@ -723,21 +735,21 @@ class DataVault:
         await self.get_data("smart", False, force, with_inbox=False, with_challenges=False)
 
     async def refresh_with_challenges(self, force: bool = False) -> None:
-        """Performs a refresh including challenges data.
+        """Perform a refresh including challenges data.
 
         :param force: If True, force a refresh from the API, ignoring cached data.
         """
         await self.get_data("smart", False, force, with_inbox=False, with_challenges=True)
 
     async def refresh_with_full_inbox(self, force: bool = False) -> None:
-        """Performs a refresh including all inbox messages.
+        """Perform a refresh including all inbox messages.
 
         :param force: If True, force a refresh from the API, ignoring cached data.
         """
         await self.get_data("smart", False, force, with_inbox=True, with_challenges=False)
 
     async def refresh_everything(self, force: bool = False) -> None:
-        """Performs a comprehensive refresh of all available data.
+        """Perform a comprehensive refresh of all available data.
 
         This includes user data with a full inbox, party data, game content,
         tasks, tags, and challenges.
@@ -747,7 +759,7 @@ class DataVault:
         await self.get_data("smart", False, force, with_inbox=True, with_challenges=True)
 
     async def sync_tasks_only(self, force: bool = False) -> None:
-        """Synchronizes only the tasks data.
+        """Synchronize only the tasks data.
 
         This method is an alias for `update_tasks_only` for clarity.
 
@@ -756,7 +768,7 @@ class DataVault:
         await self.update_tasks_only("smart", False, force)
 
     async def sync_user_only(self, force: bool = False) -> None:
-        """Synchronizes only the user data.
+        """Synchronize only the user data.
 
         This method is an alias for `update_user_only` for clarity.
 
@@ -768,35 +780,41 @@ class DataVault:
     def ensure_user_loaded(self) -> UserCollection:
         """Ensure user data is loaded and return it."""
         if self.user is None:
-            raise ValueError("User data not loaded. Call get_data() first.")
+            msg = "User data not loaded. Call get_data() first."
+            raise ValueError(msg)
         return self.user
 
     def ensure_tasks_loaded(self) -> TaskCollection:
         """Ensure tasks data is loaded and return it."""
         if self.tasks is None:
-            raise ValueError("Tasks data not loaded. Call get_data() first.")
+            msg = "Tasks data not loaded. Call get_data() first."
+            raise ValueError(msg)
         return self.tasks
 
     def ensure_game_content_loaded(self) -> ContentCollection:
         """Ensure game content is loaded and return it."""
         if self.game_content is None:
-            raise ValueError("Game content not loaded. Call get_data() first.")
+            msg = "Game content not loaded. Call get_data() first."
+            raise ValueError(msg)
         return self.game_content
 
     def ensure_party_loaded(self) -> PartyCollection:
         """Ensure party data is loaded and return it."""
         if self.party is None:
-            raise ValueError("Party data not loaded. Call get_data() first.")
+            msg = "Party data not loaded. Call get_data() first."
+            raise ValueError(msg)
         return self.party
 
     def ensure_tags_loaded(self) -> TagCollection:
         """Ensure tags data is loaded and return it."""
         if self.tags is None:
-            raise ValueError("Tags data not loaded. Call get_data() first.")
+            msg = "Tags data not loaded. Call get_data() first."
+            raise ValueError(msg)
         return self.tags
 
     def ensure_challenges_loaded(self) -> ChallengeCollection:
         """Ensure challenges data is loaded and return it."""
         if self.challenges is None:
-            raise ValueError("Challenges data not loaded. Call get_data() first.")
+            msg = "Challenges data not loaded. Call get_data() first."
+            raise ValueError(msg)
         return self.challenges

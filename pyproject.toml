@@ -1,61 +1,177 @@
 [project]
-name = "example_package"
+name = "habitui"
+dynamic = ["version"]
 description = "example package"
-version = "0.1.0"
-authors = [
-    { name = "Random Hacker", email = "no@dev.null" }
-]
 readme = "README.md"
 requires-python = ">=3.10"
-
+authors = [{ name = "Random Hacker", email = "no@dev.null" }]
 dependencies = [
-    "pyhumps",
-    "python-box",
-    "sqlmodel",
-    "loguru",
-    "textual"
+    "pydantic>=2.0.0",
+    "pydantic-settings>=2.0.0",
+    "pyhumps>=3.8.0",
+    "rich>=13.7.0",
+    "textual>=0.79.0",
+    "loguru>=0.7.0",
+    "sqlmodel>=0.0.22",
+    "emoji-data-python>=0.2.0",
+    "httpx>=0.27.0",
+    "python-box>=7.1.1",
 ]
 
-[project.optional-dependencies]
-dev = [
-    "mypy",
-    "ruff",
-    "black",
+[tool.uv]
+python-preference = "system"
+dev-dependencies = [
+    "ruff>=0.5.0",
+    "mypy>=1.10.0",
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "sqlalchemy[mypy]",
+    "pydantic[mypy]"
 ]
-
-#[build-system]
-#build-backend = "flit_core.buildapi"
-#requires = ["flit_core >=3.2,<4"]
-
-[tool.black]
-line-length = 120
-target-version = ["py313"]
 
 [tool.ruff]
 line-length = 120
 target-version = "py313"
+src = ["src"]
+show-fixes = true
 
 [tool.ruff.format]
-preview = true
-quote-style = "double"
-indent-style = "space"
-skip-magic-trailing-comma = true
-line-ending = "auto"
 docstring-code-format = true
 docstring-code-line-length = 150
+indent-style = "tab"
+line-ending = "auto"
+preview = true
+quote-style = "double"
+skip-magic-trailing-comma = false
 
 [tool.ruff.lint]
-select = ["ALL"]
-ignore = ["RUF012", "COM812","D100", "D401","ANN401","BLE001", "FBT001", "FBT002", "PGH003",]
+select = [
+    "E", # pycodestyle errors
+    "W", # pycodestyle warnings
+    "F", # pyflakes
+    "I", # isort
+    "B", # flake8-bugbear
+    "C4", # flake8-comprehensions
+    "UP", # pyupgrade
+    "N", # pep8-naming
+    "SIM", # flake8-simplify
+    "TCH", # flake8-type-checking
 
+]
+ignore = [
+    "E501", # line too long, handled by black/ruff format
+    "B008", # do not perform function calls in argument defaults
+    "C901", # too complex
+    "W191", # indentation contains tabs
+    "E203", # whitespace before ':'
+    "UP007", # Use X | Y for type annotations (sometimes conflicts with sqlmodel)
 
-[tool.ruff.lint.pep8-naming]
-classmethod-decorators = [
-    "pydantic.validator",
-    "declared_attr",
-    "expression",
-    "comparator",
 ]
 
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]
+"tests/*" = ["S101"]
+
+[tool.ruff.lint.pycodestyle]
+max-doc-length = 120
+max-line-length = 150
+
 [tool.ruff.lint.pydocstyle]
-convention = "pep257"
+convention = "numpy"
+
+[tool.ruff.lint.pyupgrade]
+keep-runtime-typing = true
+
+[tool.ruff.lint.pylint]
+allow-dunder-method-names = ["__tablename__", "__table_args__"]
+allow-magic-value-types = ["int"]
+max-args = 10
+max-bool-expr = 10
+max-branches = 15
+max-locals = 20
+max-nested-blocks = 10
+max-positional-args = 3
+max-public-methods = 30
+max-statements = 75
+max-returns = 10
+
+[tool.ruff.lint.isort]
+from-first = true
+combine-as-imports = true
+force-sort-within-sections = true
+force-wrap-aliases = true
+known-first-party = ["habitui"]
+known-local-folder = ["src"]
+length-sort = true
+lines-after-imports = 2
+lines-between-types = 1
+order-by-type = true
+relative-imports-order = "furthest-to-closest"
+required-imports = ["from __future__ import annotations"]
+no-lines-before = ["future", "standard-library"]
+known-third-party = [
+    "sqlmodel",
+    "sqlalchemy",
+    "pydantic",
+    "pydantic_settings",
+    "loguru",
+    "textual",
+    "rich",
+    "httpx",
+    "box",
+    "humps",
+    "emoji_data_python",
+]
+section-order = [
+    "future",
+    "typing",
+    "standard-library",
+    "logging",
+    "rich",
+    "textual",
+    "third-party",
+    "first-party",
+    "local-folder"
+]
+
+[tool.ruff.lint.isort.sections]
+# Group all Django imports into a separate section.
+"textual" = ["textual"]
+"rich" = ["rich"]
+logging = ["logging", "loguru"]
+
+[tool.ruff.lint.flake8-type-checking]
+exempt-modules = ["typing", "typing_extensions"]
+runtime-evaluated-base-classes = [
+    "pydantic.BaseModel",
+    "sqlmodel.SQLModel",
+    "sqlalchemy.orm.DeclarativeBase",
+    "textual.app.App",
+    "textual.widget.Widget"
+]
+runtime-evaluated-decorators = ["pydantic.validate_call", "attrs.define"]
+
+[tool.mypy]
+check_untyped_defs = true
+disallow_any_generics = true
+disallow_untyped_defs = true
+follow_imports = "silent"
+no_implicit_optional = true
+no_implicit_reexport = true
+python_version = "3.13"
+strict = true
+warn_redundant_casts = true
+warn_unused_configs = true
+warn_unused_ignores = true
+plugins = ["pydantic.mypy", "sqlalchemy.ext.mypy.plugin"]
+
+[tool.pydantic-mypy]
+init_forbid_extra = true
+init_typed = true
+warn_required_dynamic_aliases = true
+[[tool.mypy.overrides]]
+module = "sqlmodel.sql._expression_select_gen"
+warn_unused_ignores = false
+[[tool.mypy.overrides]]
+module = "sqlmodel.*"
+ignore_missing_imports = true
