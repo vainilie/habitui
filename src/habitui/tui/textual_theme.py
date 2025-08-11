@@ -4,17 +4,19 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 from textual.theme import Theme as TextualTheme
 
 from habitui.custom_logger import log
-from habitui.ui.theme_manager import StyleMapper
+from habitui.ui.theme_manager import DEFAULT_THEMES_JSON_PATH, StyleMapper
+
+
+if TYPE_CHECKING:
+	from pathlib import Path
 
 
 ThemeData = dict[str, str]
-
-DEFAULT_THEMES_JSON_PATH = Path(__file__).parent / "themes.json"
 
 
 class TextualThemeBridge:
@@ -25,6 +27,7 @@ class TextualThemeBridge:
 		self._textual_themes_cache: dict[str, TextualTheme] = {}
 		self.themes_file_path = themes_file_path or DEFAULT_THEMES_JSON_PATH
 		self.style_mapper = StyleMapper()
+		self._themes = None
 
 	def _load_themes(self) -> dict[str, ThemeData]:
 		"""Load theme definitions from the JSON file, with caching."""

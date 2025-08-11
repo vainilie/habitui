@@ -50,11 +50,7 @@ class BaseVault[T_Collection](ABC):
 	ARCHIVE_POSITION_START: ClassVar[int] = 10_000
 
 	def __init__(
-		self,
-		vault_name: str,
-		cache_time: timedelta,
-		db_url: str = f"sqlite:///{DATABASE_FILE_NAME}",
-		echo: bool = False,
+		self, vault_name: str, cache_time: timedelta, db_url: str = f"sqlite:///{DATABASE_FILE_NAME}", echo: bool = True
 	) -> None:
 		"""Initialize the database engine and create tables if they don't exist."""
 		self.engine: Engine = create_engine(db_url, echo=echo)
@@ -271,7 +267,7 @@ class BaseVault[T_Collection](ABC):
 		items: Iterable[T_Model],
 		strategy: SaveStrategy,
 		content_name: str,
-		debug: bool = False,
+		debug: bool = True,
 		use_archiving: bool = False,
 		append_mode: bool = False,
 	) -> None:
@@ -587,10 +583,11 @@ class BaseVault[T_Collection](ABC):
 
 		for field_name, field_value in item_dict.items():
 			if isinstance(field_value, datetime):
+				# Normalize to UTC and truncate microseconds for consistent storage
 				if field_value.tzinfo is None:
-					item_dict[field_name] = field_value.replace(tzinfo=UTC)
+					item_dict[field_name] = field_value.replace(tzinfo=UTC, microsecond=0)
 				else:
-					item_dict[field_name] = field_value.astimezone(UTC)
+					item_dict[field_name] = field_value.astimezone(UTC).replace(microsecond=0)
 
 		return type(item)(**item_dict)
 
@@ -605,10 +602,11 @@ class BaseVault[T_Collection](ABC):
 
 		for key, value in item_dict.items():
 			if isinstance(value, datetime):
+				# Normalize to UTC and truncate microseconds to avoid precision issues
 				if value.tzinfo is None:
-					normalized[key] = value.replace(tzinfo=UTC)
+					normalized[key] = value.replace(tzinfo=UTC, microsecond=0)
 				else:
-					normalized[key] = value.astimezone(UTC)
+					normalized[key] = value.astimezone(UTC).replace(microsecond=0)
 			elif isinstance(value, float):
 				normalized[key] = round(value, 9)
 			else:
@@ -626,7 +624,13 @@ class BaseVault[T_Collection](ABC):
 		norm1 = self._normalize_model_for_comparison(model1)
 		norm2 = self._normalize_model_for_comparison(model2)
 
-		return norm1 == norm2
+		# Perform explicit field-by-field comparison to ensure consistency with logging
+		all_keys = set(norm1.keys()) | set(norm2.keys())
+		for key in all_keys:
+			if norm1.get(key) != norm2.get(key):
+				return False # Found a difference
+
+		return True # No differences found
 
 	def _log_model_differences(self, existing: T_Model, new: T_Model) -> None:
 		"""Log specific differences between two models for debugging.
@@ -650,8 +654,24 @@ class BaseVault[T_Collection](ABC):
 				else:
 					differences.append(f"{key}: {old_val} -> {new_val}")
 
-		if differences:
-			log.debug("Differences for item {}: {}", existing.id, "; ".join(differences))
+		# Always log detailed differences if debug is enabled, even if normalized values are the same
+		# This helps debug subtle differences not caught by normalization
+		log.debug("DEBUG: Detailed differences for item with id = '{}'", existing.id)
+		log.debug("{:<15} | {:<20} | {:<20}", "FIELD", "DB VALUE", "NEW VALUE")
+
+		all_keys = sorted(existing_norm.keys() | new_norm.keys())
+		for key in all_keys:
+			old_val = existing_norm.get(key)
+			new_val = new_norm.get(key)
+			if old_val != new_val:
+				log.debug(
+					"{:<15} | {:<20}({}) | {:<20} ({})",
+					key,
+					str(old_val),
+					type(old_val).__name__,
+					str(new_val),
+					type(new_val).__name__,
+				)
 
 	def _configure_datetime_handling(self) -> None:
 		"""Configure the engine to handle datetime, especially for SQLite."""

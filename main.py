@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from habitui.tui.main_app import HabiTUI
-from habitui.custom_logger import log
+from src.habitui.tui.main_app import HabiTUI
+from src.habitui.custom_logger import log
 
 
 def main() -> None:

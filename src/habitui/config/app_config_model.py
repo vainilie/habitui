@@ -21,7 +21,7 @@ def get_project_root() -> Path:
 	"""Detect the project root intelligently."""
 	current = Path.cwd()
 	for parent in [current, *list(current.parents)]:
-		if any((parent / indicator).exists() for indicator in ["requirements.txt", ".git"]):
+		if any((parent / indicator).exists() for indicator in ["requirements.txt", ".git", "pyproject.toml"]):
 			return parent
 	return current
 

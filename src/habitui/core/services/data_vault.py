@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import Any, Self, Literal, cast
+import asyncio
 from dataclasses import field, dataclass
 
 from habitui.core.client import HabiticaClient
@@ -154,11 +155,13 @@ class DataVault:
 			api_method = getattr(self.client, config.fetch_method)
 			api_data = await api_method()
 
-			# Procesar según el tipo
+			# Procesar según el tipo - respetando las dependencias críticas
 			if vault_type == "user":
 				return await self._process_user_data(api_data, mode, debug)
 			elif vault_type == "challenges":
 				return self._process_challenges_data(api_data)
+			elif vault_type == "tasks":
+				return self._process_tasks_data(api_data)
 			else:
 				return self._process_generic_data(vault_type, api_data)
 
@@ -176,18 +179,24 @@ class DataVault:
 			return config.collection_class.from_api_data(cast("dict", api_data))
 		elif vault_type == "tags":
 			return config.collection_class.from_api_data(cast("list", api_data))
-		elif vault_type == "tasks":
-			return config.collection_class.from_api_data(
-				cast("SuccessfulResponseData", api_data), cast("UserCollection", self.user)
-			)
 		else:
 			return config.collection_class.from_api_data(api_data)
 
+	def _process_tasks_data(self, api_data: Any) -> TaskCollection:
+		"""Procesa datos de tasks - REQUIERE que user esté cargado"""
+		if self.user is None:
+			raise ValueError("User must be loaded before processing tasks")
+
+		return TaskCollection.from_api_data(cast("SuccessfulResponseData", api_data), cast("UserCollection", self.user))
+
 	async def _process_user_data(self, api_data: Any, mode: SaveStrategy, debug: bool) -> UserCollection:
-		"""Procesa datos de usuario y tags"""
+		"""Procesa datos de usuario y tags - REQUIERE que game_content esté cargado"""
+		if self.game_content is None:
+			raise ValueError("Game content must be loaded before processing user data")
+
 		temp_user = UserCollection.from_api_data(cast("dict", api_data), cast("ContentCollection", self.game_content))
 
-		# Procesar tags del usuario
+		# CRÍTICO: Procesar tags del usuario - esto debe pasar ANTES de guardar user
 		temp_tags = TagCollection.from_api_data(cast("list", api_data.get("tags", {})))
 		self.tag_vault.save(temp_tags, mode, debug)
 		self.tags = self._load_from_database("tags")
@@ -195,7 +204,12 @@ class DataVault:
 		return temp_user
 
 	def _process_challenges_data(self, api_data: Any) -> ChallengeCollection:
-		"""Procesa datos de challenges"""
+		"""Procesa datos de challenges - REQUIERE que user y tasks estén cargados"""
+		if self.user is None:
+			raise ValueError("User must be loaded before processing challenges")
+		if self.tasks is None:
+			raise ValueError("Tasks must be loaded before processing challenges")
+
 		return ChallengeCollection.from_api_data(
 			challenges_data=api_data,
 			user=self.user,
@@ -203,7 +217,7 @@ class DataVault:
 		)
 
 	async def _ensure_dependencies(self, vault_type: VaultType, mode: SaveStrategy, debug: bool, force: bool):
-		"""Asegura que las dependencias estén cargadas"""
+		"""Asegura que las dependencias estén cargadas - ORDEN CRÍTICO"""
 		config = self.VAULT_CONFIGS[vault_type]
 
 		for dep in config.dependencies:
@@ -211,47 +225,48 @@ class DataVault:
 				log.warning(f"{dep.title()} data not loaded, fetching {dep} data first...")
 				await self._get_data_generic(dep, mode, debug, force)
 
+				# Verificación crítica: la dependencia DEBE estar cargada después del fetch
+				if self._get_collection_attr(dep) is None:
+					raise ValueError(f"Failed to load required dependency: {dep}")
+
 	async def _get_data_generic(
 		self, vault_type: VaultType, mode: SaveStrategy, debug: bool, force: bool = False
 	) -> None:
-		"""Método genérico para obtener cualquier tipo de datos"""
+		"""Método genérico para obtener cualquier tipo de datos. Las dependencias deben manejarse por el llamador."""
 		log.debug("Processing {} content...", vault_type)
 
 		if vault_type not in self.VAULT_CONFIGS:
 			log.error("Unknown vault type: {}", vault_type)
 			return
 
-		# Verificar si ya está cargado (si no es force)
-		if not force:
-			valid, issues = self._vault_is_ready(vault_type)
-			if valid:
-				collection = self._load_from_database(vault_type)
-				if collection:
-					self._set_collection_attr(vault_type, collection)
-					return
-
-			if issues:
-				log.debug("{} vault issues: {}", vault_type.title(), ", ".join(issues))
-
-		# Asegurar dependencias
-		await self._ensure_dependencies(vault_type, mode, debug, force)
+		# Check if data is already loaded (and not forcing a refresh)
+		if not force and self._get_collection_attr(vault_type) is not None:
+			log.debug(f"{vault_type.title()} is already loaded.")
+			return
 
 		log.debug("Fetching fresh {} content from API...", vault_type)
 
 		try:
-			# Obtener y procesar datos
+			# Fetch and process data from the API
 			temp_collection = await self._fetch_and_process_data(vault_type, mode, debug)
 
-			# Guardar y cargar desde base de datos
+			# Save the new data to the database
 			vault = self._get_vault_by_type(vault_type)
-			vault.save(temp_collection, mode, debug)  # type: ignore
-			collection = self._load_from_database(vault_type)
+			if vault:
+				await asyncio.to_thread(vault.save, temp_collection, mode, debug)
+			else:
+				log.error(f"Vault not found for type: {vault_type}")
+				return
+
+			# Load the data from the database to ensure consistency
+			collection = await asyncio.to_thread(self._load_from_database, vault_type)
 
 			if collection:
 				self._set_collection_attr(vault_type, collection)
 				log.debug("{} content fetched, saved, and loaded from database", vault_type.title())
 			else:
 				log.error("Failed to load {} content from database after saving", vault_type)
+				raise ValueError(f"Failed to load {vault_type} from database")
 
 		except Exception as e:
 			log.error("Failed to fetch {} content: {}", vault_type, str(e))
@@ -320,6 +335,9 @@ class DataVault:
 
 	async def update_tasks_only(self, mode: SaveStrategy = "smart", debug: bool = False, force: bool = False) -> None:
 		log.info("Updating tasks only...")
+		if self.user is None:
+			log.warning("User data not loaded, fetching user data first...")
+			await self._get_data_generic("user", mode, debug, force)
 		await self._get_data_generic("tasks", mode, debug, force)
 		log.success("Tasks update completed")
 
@@ -327,6 +345,9 @@ class DataVault:
 		self, mode: SaveStrategy = "smart", debug: bool = False, force: bool = False, with_inbox: bool = False
 	) -> None:
 		log.info("Updating user data only...")
+		if self.game_content is None:
+			log.warning("Game content not loaded, fetching game content first...")
+			await self._get_data_generic("content", mode, debug, force)
 
 		if with_inbox:
 			await self._get_user_data_with_inbox(mode, debug, force)
@@ -344,6 +365,12 @@ class DataVault:
 		self, mode: SaveStrategy = "smart", debug: bool = False, force: bool = False
 	) -> None:
 		log.info("Updating challenges only...")
+		if self.user is None:
+			log.warning("User data not loaded, fetching user data first...")
+			await self._get_data_generic("user", mode, debug, force)
+		if self.tasks is None:
+			log.warning("Tasks data not loaded, fetching tasks data first...")
+			await self._get_data_generic("tasks", mode, debug, force)
 		await self._get_data_generic("challenges", mode, debug, force)
 		log.success("Challenges update completed")
 
@@ -367,32 +394,39 @@ class DataVault:
 			log.info("Force-refreshing all data...")
 
 		try:
-			# Orden de carga según dependencias
-			load_order = ["content", "party", "tags"]
+			# Phase 1: Game content (prerequisite for everything else)
+			log.info("Loading game content...")
+			await self._get_data_generic("content", mode, debug, force)
+			if self.game_content is None:
+				log.error("Game content failed to load, aborting data fetch")
+				return
 
+			# Phase 2: Party content (independent)
+			log.info("Loading party data...")
+			await self._get_data_generic("party", mode, debug, force)
+
+			# Phase 3: User content (prerequisite for tasks and challenges)
+			log.info("Loading user data...")
 			if with_inbox:
-				load_order.append("user_with_inbox")
+				await self._get_user_data_with_inbox(mode, debug, force)
 			else:
-				load_order.append("user")
+				await self._get_data_generic("user", mode, debug, force)
 
-			load_order.append("tasks")
+			if self.user is None:
+				log.error("User content failed to load, skipping dependent data")
+				return
 
+			# Phase 4: Tasks content (depends on user)
+			log.info("Loading tasks...")
+			await self._get_data_generic("tasks", mode, debug, force)
+
+			# Phase 5: Challenges content (depends on user and tasks)
 			if with_challenges:
-				load_order.append("challenges")
-
-			# Cargar datos en orden
-			for data_type in load_order:
-				if data_type == "user_with_inbox":
-					await self._get_user_data_with_inbox(mode, debug, force)
-				else:
-					await self._get_data_generic(cast("VaultType", data_type), mode, debug, force)
-
-				# Validaciones críticas
-				if data_type in ["content", "user", "user_with_inbox"]:
-					collection = self._get_collection_attr("content" if data_type == "content" else "user")
-					if collection is None:
-						log.error(f"{data_type.title()} content failed to load, aborting data fetch")
-						return
+				if self.tasks is None:
+					log.error("Tasks failed to load, cannot load challenges")
+					return
+				log.info("Loading challenges...")
+				await self._get_data_generic("challenges", mode, debug, force)
 
 			log.success("Data fetching completed successfully")
 

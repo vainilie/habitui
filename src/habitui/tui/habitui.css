@@ -1,0 +1,70 @@
+#home_screen{height:100%}
+LoadingIndicator{height:10%}
+Static{height: 30%;}
+TextualLogConsole{height: 40%;}
+
+MainScreen * {
+
+        margin:     0;
+        padding:    0;
+    }
+
+    HabiticaApp {
+        background:     $background;
+    }
+
+    Screen {
+        background:     $background;
+        color:          $text;
+    }
+
+    Header {
+        background:     #907aa9;
+        color:          $background;
+        padding:        0 1;
+    }
+
+    HeaderTitle {
+        color:              $background;
+        text-opacity:       100%;
+    }
+
+    HeaderClock {
+        background:         $boost;
+        color:              $background;
+        text-style:         bold;
+        text-opacity:       100%;
+    }
+
+    Footer {
+        background:     $panel;
+        color:$foreground;
+    }
+
+    FooterKey {
+        padding-left:       1;
+    }
+
+/* ─── Main Screen ────────────────────────────────────────────────────────── */
+
+    MainScreen #content-area {
+
+    }
+
+    MainScreen #main-container {
+
+    }
+
+    MainScreen #sidebar {
+        width:          30%;
+        display:        none;
+        border-left:    thick $secondary;
+    }
+
+    MainScreen #sidebar.visible {
+        display:    block;
+    }
+
+    TextualLogConsole {
+        outline:    round $primary;
+    }

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Self
+from typing import Any, Self
 import datetime
 
 from box import Box
@@ -14,11 +14,8 @@ from habitui.custom_logger import log
 
 from .base_enums import TaskType, Frequency
 from .base_model import HabiTuiSQLModel, HabiTuiBaseModel
-
-
-if TYPE_CHECKING:
-	from .task_model import TaskCollection, ChallengeInTask
-	from .user_model import UserCollection, ChallengeInUser
+from .task_model import TaskCollection, ChallengeInTask
+from .user_model import UserCollection, ChallengeInUser
 
 
 class ChallengeTaskBase(HabiTuiSQLModel, table=False):

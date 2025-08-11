@@ -10,6 +10,9 @@ from humps import decamelize
 from pydantic import field_validator
 from sqlmodel import Field, Column
 
+from habitui.ui import icons
+from habitui.utils import DateTimeHandler
+
 from .tag_model import TagComplex
 from .base_model import HabiTuiSQLModel, HabiTuiBaseModel
 from .validators import PydanticJSON, parse_datetime
@@ -86,7 +89,7 @@ class UserStatsRaw(HabiTuiSQLModel, table=True):
 	:param base_max_hp: Base maximum HP.
 	:param base_max_mp: Base maximum MP.
 	:param to_next_level: Experience needed to next level.
-	:param buffs: Dictionary of active buffs.
+	:param buffs: dictionary of active buffs.
 	:param equipped_gear: List of equipped gear IDs.
 	"""
 
@@ -272,7 +275,7 @@ class UserAchievements(HabiTuiSQLModel, table=True):
 	:param perfect: Number of perfect days.
 	:param streak: Current daily streak.
 	:param challenges: List of challenge IDs achieved.
-	:param quests: Dictionary of quest achievements.
+	:param quests: dictionary of quest achievements.
 	"""
 
 	__tablename__ = "user_achievements"  # type: ignore
@@ -299,7 +302,7 @@ class UserNotifications(HabiTuiSQLModel, table=True):
 	"""User notifications and inbox status.
 
 	:param inbox_new_message_count: Number of new messages in inbox.
-	:param new_messages: Dictionary of new messages.
+	:param new_messages: dictionary of new messages.
 	:param notifications: List of notifications.
 	:param current_quest_rsvp_needed: True if RSVP is needed for current quest.
 	:param current_quest_completed_trigger: Quest completed trigger status.
@@ -593,7 +596,6 @@ class UserCollection(HabiTuiBaseModel):
 			sender = msg.uuid
 
 			if sender not in senders:
-				# Buscar nombre del otro participante
 				sender_name = msg.user if not msg.by_me else None
 				sender_username = msg.username if not msg.by_me else None
 				senders[sender] = {
@@ -611,3 +613,106 @@ class UserCollection(HabiTuiBaseModel):
 				senders[sender]["sender_username"] = msg.username
 
 		return senders
+
+	def get_display_name(self) -> str:
+		"""Get the user's display name."""
+		return self.profile.name or "Unknown User"
+
+	def get_class_info(self) -> dict[str, str]:
+		"""Get class information with icon."""
+		class_name = self.raw_stats.class_name or "no class"
+
+		class_icons = {
+			"wizard": icons.WIZARD,
+			"mage": icons.WIZARD,
+			"healer": icons.HEALER,
+			"warrior": icons.WARRIOR,
+			"rogue": icons.ROGUE,
+			"no class": icons.USER,
+		}
+
+		return {"name": class_name, "icon": class_icons.get(class_name.lower(), icons.USER)}
+
+	def get_sleep_status(self) -> str:
+		"""Get formatted sleep status."""
+		return "Resting" if self.is_sleeping() else "Awake"
+
+	def get_day_start_time(self) -> str:
+		"""Get formatted day start time."""
+		return f"{self.preferences.day_start}:00"
+
+	def needs_cron(self) -> bool:
+		"""Check if user needs cron run."""
+		return self.user_state.needs_cron
+
+	def get_quest_info(self) -> dict[str, Any]:
+		"""Get comprehensive quest information."""
+		current_quest_key = self.user_state.current_quest_key
+
+		if not current_quest_key:
+			return {
+				"has_quest": False,
+				"name": "No active quest",
+				"display_text": "No active quest",
+				"completed": False,
+			}
+
+		quest_name = f"Quest: {current_quest_key}"
+		status_parts = []
+
+		if self.user_state.current_quest_completed:
+			status_parts.append(icons.CHECK)
+
+		if self.notifications.current_quest_completed_trigger:
+			status_parts.append("(Get rewards!)")
+
+		status_suffix = " " + " ".join(status_parts) if status_parts else ""
+		display_text = f"{icons.QUEST} {quest_name}{status_suffix}"
+
+		return {
+			"has_quest": True,
+			"name": quest_name,
+			"display_text": display_text,
+			"completed": self.user_state.current_quest_completed,
+		}
+
+	def get_basic_stats(self) -> dict[str, Any]:
+		"""Get basic character stats formatted for UI."""
+		return {
+			"hp": {"current": int(self.raw_stats.hp), "max": int(self.raw_stats.base_max_hp)},
+			"xp": {"current": int(self.raw_stats.exp), "max": self.raw_stats.to_next_level},
+			"mp": {"current": int(self.raw_stats.mp), "max": int(self.computed_stats.effective_max_mp)},
+			"level": self.raw_stats.level,
+			"gold": int(self.raw_stats.gp),
+			"gems": int(self.raw_stats.gems or 0),
+		}
+
+	def get_attributes(self) -> dict[str, int]:
+		"""Get character attributes."""
+		return {
+			"intelligence": int(self.computed_stats.effective_intelligence),
+			"perception": int(self.computed_stats.effective_perception),
+			"strength": int(self.computed_stats.effective_strength),
+			"constitution": int(self.computed_stats.effective_constitution),
+		}
+
+	def get_achievements(self) -> dict[str, Any]:
+		"""Get achievements data formatted for UI."""
+
+		def format_date(date_obj) -> str:
+			if hasattr(date_obj, "strftime"):
+				return DateTimeHandler(timestamp=date_obj).format_local()
+			return str(date_obj) if date_obj else "N/A"
+
+		return {
+			"account_created": format_date(self.timestamps.account_created_at),
+			"login_days": self.achievements.login_incentives,
+			"perfect_days": self.achievements.perfect,
+			"streak_count": self.achievements.streak,
+			"challenges_won": len(self.achievements.challenges or []),
+			"quests_completed": len(self.achievements.quests or []),
+		}
+
+	def get_profile_summary(self) -> dict[str, str]:
+		"""Get profile summary for biography section."""
+		return {"username": self.profile.username or "Unknown", "bio": self.profile.blurb or "No biography available."}

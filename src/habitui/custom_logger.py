@@ -65,7 +65,7 @@ class MinimalLogger:
 	def setup(
 		self,
 		console_level: str = "INFO",
-		file_level: str = "INFO",
+		file_level: str = "DEBUG",
 		log_file: str = "app.log",
 		rotation: str = "10 MB",
 		retention: str = "7 days",
