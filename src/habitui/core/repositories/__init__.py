@@ -9,4 +9,12 @@ from .content_vault import ContentVault
 from .challenge_vault import ChallengeVault
 
 
-__all__ = ["ChallengeVault", "ContentVault", "PartyVault", "SaveStrategy", "TagVault", "TaskVault", "UserVault"]
+__all__ = [
+    "ChallengeVault",
+    "ContentVault",
+    "PartyVault",
+    "SaveStrategy",
+    "TagVault",
+    "TaskVault",
+    "UserVault",
+]

@@ -18,23 +18,23 @@ from .mixin.challenge_mixin import ChallengeMixin
 
 
 class HabiticaClient(
-	HabiticaAPI,
-	ChallengeMixin,
-	InboxMixin,
-	PartyMixin,
-	TagMixin,
-	TaskMixin,
-	UserMixin,
-	ChallengePaginationMixin,
-	InboxPaginationMixin,
+    HabiticaAPI,
+    ChallengeMixin,
+    InboxMixin,
+    PartyMixin,
+    TagMixin,
+    TaskMixin,
+    UserMixin,
+    ChallengePaginationMixin,
+    InboxPaginationMixin,
 ):
-	"""A comprehensive, asynchronous Habitica API Client."""
+    """A comprehensive, asynchronous Habitica API Client."""
 
-	def __init__(self, config_override: Any | None = None) -> None:
-		"""Initialize the full HabiticaClient.
+    def __init__(self, config_override: Any | None = None) -> None:
+        """Initialize the full HabiticaClient.
 
-		:param config_override: Optional configuration object to override `application_settings.api`.
-		"""
-		super().__init__(config_override=config_override)
+        :param config_override: Optional configuration object to override `application_settings.api`.
+        """
+        super().__init__(config_override=config_override)
 
-		log.debug("HabiticaClient fully initialized with all mixins.")
+        log.debug("HabiticaClient fully initialized with all mixins.")

@@ -1,10 +1,8 @@
-# ♥♥─── HabiTUI Application Core ─────────────────────────────────────────
-
-
+# ♥♥─── Main App ─────────────────────────────────────────────────────────────────
 from __future__ import annotations
 
-from textual import work
 from textual.app import App, ComposeResult
+from textual.screen import Screen
 from textual.binding import Binding
 from textual.widgets import Static, LoadingIndicator
 from textual.containers import Vertical
@@ -14,91 +12,66 @@ from art import text2art
 from habitui.custom_logger import get_logger
 from habitui.core.services.data_vault import DataVault
 
-from .main_screen import MainScreen
-from .textual_log import LoggingMixin, TextualLogConsole
-from .textual_theme import TextualThemeManager
+from .main.theming import TextualThemeManager
+from .main.rich_log import LoggingMixin, TextualLogConsole
+from .screens.main_screen import MainScreen
+
+
+class LoadingScreen(Screen):
+    def __init__(self) -> None:
+        super().__init__()
+        self.app: HabiTUI
+
+    def compose(self) -> ComposeResult:
+        vertical = Vertical(id="home-screen")
+        with vertical:
+            ascii_art = text2art("habiTUI", font="doom")
+            yield Static(ascii_art, id="name-banner")  # type: ignore
+            yield LoadingIndicator(id="main-loading")
+            yield TextualLogConsole(
+                classes="console",
+                id="loading-console",
+                max_lines=20,
+            )
+
+    def on_mount(self) -> None:
+        initial_log_console = self.query_one(TextualLogConsole)
+        self.app.setup_logging_widget(initial_log_console)
+        self.app.logger.info("Starting HabiTUI...")
 
 
 class HabiTUI(LoggingMixin, App):
-	"""
-	Main application class for HabiTUI. Manages application lifecycle, data loading, and screen transitions.
-	"""
+    BINDINGS = [Binding("q", "quit", "Quit", priority=True)]
+    CSS_PATH = "habitui.tcss"
+    SCREENS = {"loading": LoadingScreen, "main": MainScreen}
 
-	BINDINGS = [
-		Binding("q", "quit", "Quit"),
-	]
-	CSS_PATH = "habitui.css"
+    def __init__(self) -> None:
+        super().__init__()
+        self.logger = get_logger()
+        self.theme_manager: TextualThemeManager = TextualThemeManager(self)
+        self.vault: DataVault | None = None
 
-	def __init__(self) -> None:
-		"""Initializes the HabiTUI application."""
-		super().__init__()
-		self.logger = get_logger()
-		self.theme_manager: TextualThemeManager = TextualThemeManager(self)
-		self.vault: DataVault | None = None
-		self._loading_complete: bool = False
+    async def on_mount(self) -> None:
+        self.title = "HabiTUI"
+        self.theme = "rose_pine"
+        self.push_screen("loading")
 
-	def compose(self) -> ComposeResult:
-		"""
-		Composes the initial layout of the application. Displays an ASCII art banner, a loading indicator, and a log console.
-		"""
-		vertical = Vertical(id="home_screen")
+    async def on_ready(self) -> None:
+        try:
+            self.logger.info("Starting vault load...")
+            self.vault = DataVault()
+            await self.vault.get_data(force=False, debug=True, mode="smart")
+            self.logger.info("Vault loaded successfully.")
+            self.logger.info("Transitioning to MainScreen...")
+            self.pop_screen()
+            self.push_screen("main")
 
-		with vertical:
-			ascii_art = text2art("habiTUI", font="ogre")
-			yield Static(ascii_art, id="ascii-banner")  # type: ignore
-			yield LoadingIndicator(id="main-loading")
-			yield TextualLogConsole(id="log-console")
-
-	async def on_mount(self) -> None:
-		"""Actions to perform when the app is mounted. Sets up logging, banner styling, and initiates asynchronous data loading."""
-
-		self.setup_banner_styling()
-
-		# Explicitly set up logging for the initial console
-		initial_log_console = self.query_one("#log-console", TextualLogConsole)
-		self.setup_logging_widget(initial_log_console)
-
-		self.logger.info("Starting HabiTUI...")
-		self.title = "HabiTUI"
-		self.theme = "rose_pine"
-
-		self.load_vault_and_main_screen()
-
-	# ─── Setup Methods ─────────────────────────────────────────────────────────────
-
-	def setup_banner_styling(self) -> None:
-		"""
-		Applies styles to the ASCII art banner.
-		"""
-		try:
-			banner = self.query_one("#ascii-banner", Static)
-			banner.styles.color = "rgb(235,188,186)"
-			banner.styles.text_align = "center"
-
-		except Exception as e:
-			self.logger.warning(f"Could not style the banner: {e}")
-
-	# ─── Data Loading and Screen Transition ────────────────────────────────────────
-
-	@work(exclusive=True)
-	async def load_vault_and_main_screen(self) -> None:
-		"""
-		Loads the DataVault and transitions to the MainScreen.
-		This operation runs in a background worker thread.
-		"""
-		try:
-			self.logger.info("Starting vault load...")
-			self.vault = DataVault()
-			await self.vault.get_data(force=False, debug=True, mode="smart")
-			self.logger.info("Vault loaded successfully.")
-			self.logger.info("Transitioning to MainScreen...")
-			self._loading_complete = True
-			self.push_screen(MainScreen())
-
-		except Exception as e:
-			self.logger.error(f"Error during data loading: {e}")
+        except Exception as e:
+            msg = f"Error during data loading: {e}"
+            self.logger.exception(msg)
+            self.logger.exception("Failed to load vault. Staying on loading screen.")
 
 
 if __name__ == "__main__":
-	app = HabiTUI()
-	app.run()
+    app = HabiTUI()
+    app.run()

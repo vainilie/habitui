@@ -1,538 +1,756 @@
+# ♥♥─── Main Datavault ───────────────────────────────────────────────────────────
 from __future__ import annotations
 
-from typing import Any, Self, Literal, cast
+from typing import TYPE_CHECKING, Any, Self, Literal, cast
 import asyncio
 from dataclasses import field, dataclass
 
+from habitui.ui import icons
 from habitui.core.client import HabiticaClient
 from habitui.core.models import (
-	UserMessage,
-	TagCollection,
-	TaskCollection,
-	UserCollection,
-	PartyCollection,
-	ContentCollection,
-	ChallengeCollection,
+    UserMessage,
+    TagCollection,
+    TaskCollection,
+    UserCollection,
+    PartyCollection,
+    ContentCollection,
+    ChallengeCollection,
 )
 from habitui.custom_logger import log
 from habitui.config.app_config import app_config
 from habitui.core.repositories import (
-	TagVault,
-	TaskVault,
-	UserVault,
-	PartyVault,
-	ContentVault,
-	SaveStrategy,
-	ChallengeVault,
+    TagVault,
+    TaskVault,
+    UserVault,
+    PartyVault,
+    ContentVault,
+    SaveStrategy,
+    ChallengeVault,
 )
 
 
+if TYPE_CHECKING:
+    from pathlib import Path
+
+
+# ─── Type Aliases & Constants ──────────────────────────────────────────────────
 SuccessfulResponseData = dict[str, Any] | list[dict[str, Any]] | list[Any] | None
 VaultType = Literal["user", "party", "content", "tasks", "challenges", "tags"]
+AnyVault = UserVault | PartyVault | ContentVault | TaskVault | ChallengeVault | TagVault
+
 INBOX_MINIMAL = 201
 
 
+# ─── Vault Configuration ───────────────────────────────────────────────────────
 @dataclass
 class VaultConfig:
-	name: str
-	vault_attr: str
-	collection_attr: str
-	fetch_method: str
-	collection_class: type
-	dependencies: list[VaultType] = field(default_factory=list)
-	requires_cast: bool = True
+    """Configuration for a specific data vault."""
+
+    name: str
+    vault_attr: str
+    collection_attr: str
+    fetch_method: str
+    collection_class: type
+    dependencies: list[VaultType] = field(default_factory=list)
+    requires_cast: bool = True
 
 
 class DataVault:
-	# Configuración de vaults
-	VAULT_CONFIGS = {
-		"content": VaultConfig("content", "content_vault", "game_content", "get_game_content", ContentCollection),
-		"party": VaultConfig("party", "party_vault", "party", "get_current_party_data", PartyCollection),
-		"user": VaultConfig(
-			"user", "user_vault", "user", "get_current_user_data", UserCollection, dependencies=["content"]
-		),
-		"tags": VaultConfig("tags", "tag_vault", "tags", "get_all_tags_data", TagCollection, requires_cast=False),
-		"tasks": VaultConfig(
-			"tasks", "task_vault", "tasks", "get_user_tasks_data", TaskCollection, dependencies=["user"]
-		),
-		"challenges": VaultConfig(
-			"challenges",
-			"challenge_vault",
-			"challenges",
-			"get_all_user_challenges_data",
-			ChallengeCollection,
-			dependencies=["user", "tasks"],
-		),
-	}
-
-	def __init__(self, client: HabiticaClient | None = None) -> None:
-		self.client = client or HabiticaClient()
-		self.path = app_config.storage.get_database_directory()
-		self.path.mkdir(parents=True, exist_ok=True)
-
-		# Inicializar vaults
-		self.user_vault = UserVault()
-		self.party_vault = PartyVault()
-		self.content_vault = ContentVault()
-		self.task_vault = TaskVault()
-		self.challenge_vault = ChallengeVault()
-		self.tag_vault = TagVault()
-
-		self._initialize_collections()
-		log.info("[i]Vault[/i] initialized.")
-
-	def _initialize_collections(self) -> None:
-		self.user: UserCollection | None = None
-		self.party: PartyCollection | None = None
-		self.game_content: ContentCollection | None = None
-		self.tasks: TaskCollection | None = None
-		self.tags: TagCollection | None = None
-		self.challenges: ChallengeCollection | None = None
-
-	def _get_vault_by_type(self, vault_type: VaultType):
-		vault_map = {
-			"user": self.user_vault,
-			"party": self.party_vault,
-			"content": self.content_vault,
-			"tasks": self.task_vault,
-			"challenges": self.challenge_vault,
-			"tags": self.tag_vault,
-		}
-		return vault_map.get(vault_type)
-
-	def _vault_is_ready(self, vault_type: VaultType) -> tuple[bool, list[str]]:
-		issues: list[str] = []
-		try:
-			if vault_type not in self.VAULT_CONFIGS:
-				issues.append(f"Unknown vault type: {vault_type}")
-				return False, issues
-
-			vault = self._get_vault_by_type(vault_type)
-			if not vault:
-				issues.append(f"Vault not found: {vault_type}")
-				return False, issues
-
-			return vault.is_vault_ready_for_load()
-		except Exception as e:
-			issues.append(f"Error checking vault readiness: {e!s}")
-			return False, issues
-
-	def _load_from_database(self, vault_type: VaultType) -> Any | None:
-		try:
-			vault = self._get_vault_by_type(vault_type)
-			if not vault:
-				log.error("Unknown vault type: {}", vault_type)
-				return None
-
-			loaded_data = vault.load()
-			if loaded_data:
-				log.debug("{} data loaded successfully from database", vault_type.title())
-				return loaded_data
-
-			log.debug("No {} data found in database", vault_type)
-			return None
-		except Exception as e:
-			log.error("Failed to load {} data from database: {}", vault_type, str(e))
-			return None
-
-	def _get_collection_attr(self, vault_type: VaultType):
-		"""Obtiene el atributo de colección para el vault_type"""
-		config = self.VAULT_CONFIGS.get(vault_type)
-		return getattr(self, config.collection_attr) if config else None
-
-	def _set_collection_attr(self, vault_type: VaultType, value):
-		"""Establece el atributo de colección para el vault_type"""
-		config = self.VAULT_CONFIGS.get(vault_type)
-		if config:
-			setattr(self, config.collection_attr, value)
-
-	async def _fetch_and_process_data(self, vault_type: VaultType, mode: SaveStrategy, debug: bool) -> Any:
-		"""Método genérico para obtener datos de la API y procesarlos"""
-		config = self.VAULT_CONFIGS[vault_type]
-
-		try:
-			# Obtener datos de la API
-			api_method = getattr(self.client, config.fetch_method)
-			api_data = await api_method()
-
-			# Procesar según el tipo - respetando las dependencias críticas
-			if vault_type == "user":
-				return await self._process_user_data(api_data, mode, debug)
-			elif vault_type == "challenges":
-				return self._process_challenges_data(api_data)
-			elif vault_type == "tasks":
-				return self._process_tasks_data(api_data)
-			else:
-				return self._process_generic_data(vault_type, api_data)
-
-		except Exception as e:
-			log.error("Failed to fetch {} content: {}", vault_type, str(e))
-			raise
-
-	def _process_generic_data(self, vault_type: VaultType, api_data: Any) -> Any:
-		"""Procesa datos genéricos"""
-		config = self.VAULT_CONFIGS[vault_type]
-
-		if vault_type == "content":
-			return config.collection_class.from_api_data(api_data)
-		elif vault_type == "party":
-			return config.collection_class.from_api_data(cast("dict", api_data))
-		elif vault_type == "tags":
-			return config.collection_class.from_api_data(cast("list", api_data))
-		else:
-			return config.collection_class.from_api_data(api_data)
-
-	def _process_tasks_data(self, api_data: Any) -> TaskCollection:
-		"""Procesa datos de tasks - REQUIERE que user esté cargado"""
-		if self.user is None:
-			raise ValueError("User must be loaded before processing tasks")
-
-		return TaskCollection.from_api_data(cast("SuccessfulResponseData", api_data), cast("UserCollection", self.user))
-
-	async def _process_user_data(self, api_data: Any, mode: SaveStrategy, debug: bool) -> UserCollection:
-		"""Procesa datos de usuario y tags - REQUIERE que game_content esté cargado"""
-		if self.game_content is None:
-			raise ValueError("Game content must be loaded before processing user data")
-
-		temp_user = UserCollection.from_api_data(cast("dict", api_data), cast("ContentCollection", self.game_content))
-
-		# CRÍTICO: Procesar tags del usuario - esto debe pasar ANTES de guardar user
-		temp_tags = TagCollection.from_api_data(cast("list", api_data.get("tags", {})))
-		self.tag_vault.save(temp_tags, mode, debug)
-		self.tags = self._load_from_database("tags")
-
-		return temp_user
-
-	def _process_challenges_data(self, api_data: Any) -> ChallengeCollection:
-		"""Procesa datos de challenges - REQUIERE que user y tasks estén cargados"""
-		if self.user is None:
-			raise ValueError("User must be loaded before processing challenges")
-		if self.tasks is None:
-			raise ValueError("Tasks must be loaded before processing challenges")
-
-		return ChallengeCollection.from_api_data(
-			challenges_data=api_data,
-			user=self.user,
-			tasks=self.tasks,
-		)
-
-	async def _ensure_dependencies(self, vault_type: VaultType, mode: SaveStrategy, debug: bool, force: bool):
-		"""Asegura que las dependencias estén cargadas - ORDEN CRÍTICO"""
-		config = self.VAULT_CONFIGS[vault_type]
-
-		for dep in config.dependencies:
-			if self._get_collection_attr(dep) is None:
-				log.warning(f"{dep.title()} data not loaded, fetching {dep} data first...")
-				await self._get_data_generic(dep, mode, debug, force)
-
-				# Verificación crítica: la dependencia DEBE estar cargada después del fetch
-				if self._get_collection_attr(dep) is None:
-					raise ValueError(f"Failed to load required dependency: {dep}")
-
-	async def _get_data_generic(
-		self, vault_type: VaultType, mode: SaveStrategy, debug: bool, force: bool = False
-	) -> None:
-		"""Método genérico para obtener cualquier tipo de datos. Las dependencias deben manejarse por el llamador."""
-		log.debug("Processing {} content...", vault_type)
-
-		if vault_type not in self.VAULT_CONFIGS:
-			log.error("Unknown vault type: {}", vault_type)
-			return
-
-		# Check if data is already loaded (and not forcing a refresh)
-		if not force and self._get_collection_attr(vault_type) is not None:
-			log.debug(f"{vault_type.title()} is already loaded.")
-			return
-
-		log.debug("Fetching fresh {} content from API...", vault_type)
-
-		try:
-			# Fetch and process data from the API
-			temp_collection = await self._fetch_and_process_data(vault_type, mode, debug)
-
-			# Save the new data to the database
-			vault = self._get_vault_by_type(vault_type)
-			if vault:
-				await asyncio.to_thread(vault.save, temp_collection, mode, debug)
-			else:
-				log.error(f"Vault not found for type: {vault_type}")
-				return
-
-			# Load the data from the database to ensure consistency
-			collection = await asyncio.to_thread(self._load_from_database, vault_type)
-
-			if collection:
-				self._set_collection_attr(vault_type, collection)
-				log.debug("{} content fetched, saved, and loaded from database", vault_type.title())
-			else:
-				log.error("Failed to load {} content from database after saving", vault_type)
-				raise ValueError(f"Failed to load {vault_type} from database")
-
-		except Exception as e:
-			log.error("Failed to fetch {} content: {}", vault_type, str(e))
-			raise
-
-	# Métodos especiales que necesitan lógica específica
-	async def _get_user_data_with_inbox(self, mode: SaveStrategy, debug: bool, force: bool = False) -> None:
-		"""Versión especial para obtener datos de usuario con inbox completo"""
-		log.debug("Processing user content with inbox...")
-		inbox_count_valid = False
-
-		if not force:
-			valid, issues = self._vault_is_ready("user")
-			if valid:
-				try:
-					inbox_count = self.user_vault.count(UserMessage)
-					inbox_count_valid = inbox_count > INBOX_MINIMAL
-					if inbox_count_valid:
-						self.user = self._load_from_database("user")
-						if self.user:
-							return
-					else:
-						issues.append(f"Insufficient inbox messages: {inbox_count} <= {INBOX_MINIMAL}")
-				except Exception as e:
-					issues.append(f"Error checking inbox count: {e!s}")
-
-			if issues:
-				log.debug("User vault issues: {}", ", ".join(issues))
-
-		# Asegurar dependencias
-		if not self.game_content:
-			await self._get_data_generic("content", mode, debug, force)
-
-		log.debug("Fetching fresh user content with full inbox from API...")
-
-		try:
-			user_content = await self.client.get_current_user_data()
-			inbox_content = await self.client.get_all_inbox_messages_data()
-
-			# Merge inbox messages
-			for ibx in inbox_content:
-				user_content["inbox"]["messages"].update({ibx.get("_id"): ibx})
-
-			temp_user = UserCollection.from_api_data(
-				cast("dict", user_content),
-				cast("ContentCollection", self.game_content),
-			)
-
-			self.user_vault.save(temp_user, mode, debug)
-			self.user = self._load_from_database("user")
-
-			if self.user:
-				log.debug("User content with inbox fetched, saved, and loaded from database")
-			else:
-				log.error("Failed to load user content from database after saving")
-
-		except Exception as e:
-			log.error("Failed to fetch user content with inbox: {}", str(e))
-			raise
-
-	# Métodos de actualización individuales - ahora usando el método genérico
-	async def update_tags_only(self, mode: SaveStrategy = "smart", debug: bool = False, force: bool = False) -> None:
-		log.info("Updating tags only...")
-		await self._get_data_generic("tags", mode, debug, force)
-		log.success("Tags update completed")
-
-	async def update_tasks_only(self, mode: SaveStrategy = "smart", debug: bool = False, force: bool = False) -> None:
-		log.info("Updating tasks only...")
-		if self.user is None:
-			log.warning("User data not loaded, fetching user data first...")
-			await self._get_data_generic("user", mode, debug, force)
-		await self._get_data_generic("tasks", mode, debug, force)
-		log.success("Tasks update completed")
-
-	async def update_user_only(
-		self, mode: SaveStrategy = "smart", debug: bool = False, force: bool = False, with_inbox: bool = False
-	) -> None:
-		log.info("Updating user data only...")
-		if self.game_content is None:
-			log.warning("Game content not loaded, fetching game content first...")
-			await self._get_data_generic("content", mode, debug, force)
-
-		if with_inbox:
-			await self._get_user_data_with_inbox(mode, debug, force)
-		else:
-			await self._get_data_generic("user", mode, debug, force)
-
-		log.success("User data update completed")
-
-	async def update_party_only(self, mode: SaveStrategy = "smart", debug: bool = False, force: bool = False) -> None:
-		log.info("Updating party data only...")
-		await self._get_data_generic("party", mode, debug, force)
-		log.success("Party data update completed")
-
-	async def update_challenges_only(
-		self, mode: SaveStrategy = "smart", debug: bool = False, force: bool = False
-	) -> None:
-		log.info("Updating challenges only...")
-		if self.user is None:
-			log.warning("User data not loaded, fetching user data first...")
-			await self._get_data_generic("user", mode, debug, force)
-		if self.tasks is None:
-			log.warning("Tasks data not loaded, fetching tasks data first...")
-			await self._get_data_generic("tasks", mode, debug, force)
-		await self._get_data_generic("challenges", mode, debug, force)
-		log.success("Challenges update completed")
-
-	async def update_content_only(self, mode: SaveStrategy = "smart", debug: bool = False, force: bool = False) -> None:
-		log.info("Updating game content only...")
-		await self._get_data_generic("content", mode, debug, force)
-		log.info("Game content update completed")
-
-	# Método principal de obtención de datos
-	async def get_data(
-		self,
-		mode: SaveStrategy,
-		debug: bool,
-		force: bool = False,
-		with_inbox: bool = False,
-		with_challenges: bool = False,
-	) -> None:
-		if force:
-			log.debug("Clearing existing data for force refresh")
-			self.clear_data()
-			log.info("Force-refreshing all data...")
-
-		try:
-			# Phase 1: Game content (prerequisite for everything else)
-			log.info("Loading game content...")
-			await self._get_data_generic("content", mode, debug, force)
-			if self.game_content is None:
-				log.error("Game content failed to load, aborting data fetch")
-				return
-
-			# Phase 2: Party content (independent)
-			log.info("Loading party data...")
-			await self._get_data_generic("party", mode, debug, force)
-
-			# Phase 3: User content (prerequisite for tasks and challenges)
-			log.info("Loading user data...")
-			if with_inbox:
-				await self._get_user_data_with_inbox(mode, debug, force)
-			else:
-				await self._get_data_generic("user", mode, debug, force)
-
-			if self.user is None:
-				log.error("User content failed to load, skipping dependent data")
-				return
-
-			# Phase 4: Tasks content (depends on user)
-			log.info("Loading tasks...")
-			await self._get_data_generic("tasks", mode, debug, force)
-
-			# Phase 5: Challenges content (depends on user and tasks)
-			if with_challenges:
-				if self.tasks is None:
-					log.error("Tasks failed to load, cannot load challenges")
-					return
-				log.info("Loading challenges...")
-				await self._get_data_generic("challenges", mode, debug, force)
-
-			log.success("Data fetching completed successfully")
-
-		except Exception as e:
-			log.error("Error during data fetching: {}", str(e))
-			raise
-
-	# Context manager
-	async def __aenter__(self) -> Self:
-		log.info("Entering DataVault context manager")
-		await self.get_data(mode="smart", debug=True, force=False)
-		return self
-
-	async def __aexit__(
-		self, exc_type: type[BaseException] | None, exc_val: BaseException | None, exc_tb: object
-	) -> None:
-		if exc_type:
-			log.error("Exiting DataVault context manager due to exception: {}", str(exc_val))
-		else:
-			log.info("Exiting DataVault context manager successfully")
-
-	# Métodos de utilidad
-	def is_data_loaded(self, with_challenges: bool = False) -> bool:
-		required_attrs = ["user", "party", "game_content", "tasks", "tags"]
-		if with_challenges:
-			required_attrs.append("challenges")
-
-		missing_items = [name for name in required_attrs if getattr(self, name) is None]
-
-		if missing_items:
-			log.debug("Missing data items: {}", ", ".join(missing_items))
-			return False
-
-		log.debug("All required data is loaded")
-		return True
-
-	def clear_data(self) -> None:
-		log.debug("Clearing all cached data")
-		self._initialize_collections()
-		log.debug("All data cleared")
-
-	def get_data_summary(self) -> dict[str, Any]:
-		summary = {
-			"user_loaded": self.user is not None,
-			"party_loaded": self.party is not None,
-			"game_content_loaded": self.game_content is not None,
-			"tasks_loaded": self.tasks is not None,
-			"tags_loaded": self.tags is not None,
-			"challenges_loaded": self.challenges is not None,
-			"tasks_count": len(self.tasks.all_tasks) if self.tasks else 0,
-			"challenges_count": len(self.challenges.challenges) if self.challenges else 0,
-			"tags_count": len(self.tags) if self.tags else 0,
-		}
-		log.debug("Data summary: {}", summary)
-		return summary
-
-	# Métodos de refresh - usando el método genérico
-	async def refresh_quick(self, force: bool = False) -> None:
-		await self._get_data_generic("user", "smart", False, force)
-		await self._get_data_generic("tasks", "smart", False, force)
-		await self._get_data_generic("tags", "smart", False, force)
-
-	async def refresh_standard(self, force: bool = False) -> None:
-		await self.get_data("smart", False, force, with_inbox=False, with_challenges=False)
-
-	async def refresh_with_challenges(self, force: bool = False) -> None:
-		await self.get_data("smart", False, force, with_inbox=False, with_challenges=True)
-
-	async def refresh_with_full_inbox(self, force: bool = False) -> None:
-		await self.get_data("smart", False, force, with_inbox=True, with_challenges=False)
-
-	async def refresh_everything(self, force: bool = False) -> None:
-		await self.get_data("smart", False, force, with_inbox=True, with_challenges=True)
-
-	async def sync_tasks_only(self, force: bool = False) -> None:
-		await self.update_tasks_only("smart", False, force)
-
-	async def sync_user_only(self, force: bool = False) -> None:
-		await self.update_user_only("smart", False, force)
-
-	# Métodos ensure - usando generación dinámica
-	def _create_ensure_method(self, vault_type: VaultType, collection_type: type):
-		"""Crea dinámicamente métodos ensure_*_loaded"""
-
-		def ensure_loaded(self):
-			collection = self._get_collection_attr(vault_type)
-			if collection is None:
-				raise ValueError(f"{vault_type.title()} data not loaded. Call get_data() first.")
-			return collection
-
-		return ensure_loaded
-
-	def ensure_user_loaded(self) -> UserCollection:
-		return self._create_ensure_method("user", UserCollection)(self)
-
-	def ensure_tasks_loaded(self) -> TaskCollection:
-		return self._create_ensure_method("tasks", TaskCollection)(self)
-
-	def ensure_game_content_loaded(self) -> ContentCollection:
-		return self._create_ensure_method("content", ContentCollection)(self)
-
-	def ensure_party_loaded(self) -> PartyCollection:
-		return self._create_ensure_method("party", PartyCollection)(self)
-
-	def ensure_tags_loaded(self) -> TagCollection:
-		return self._create_ensure_method("tags", TagCollection)(self)
-
-	def ensure_challenges_loaded(self) -> ChallengeCollection:
-		return self._create_ensure_method("challenges", ChallengeCollection)(self)
+    """Manages local data caching and synchronization with the Habitica API."""
+
+    # ─── Class Configuration ───────────────────────────────────────────────────────
+    VAULT_CONFIGS: dict[str, VaultConfig] = {
+        "content": VaultConfig(
+            "content",
+            "content_vault",
+            "game_content",
+            "get_game_content",
+            ContentCollection,
+        ),
+        "party": VaultConfig(
+            "party",
+            "party_vault",
+            "party",
+            "get_current_party_data",
+            PartyCollection,
+        ),
+        "user": VaultConfig(
+            "user",
+            "user_vault",
+            "user",
+            "get_current_user_data",
+            UserCollection,
+            dependencies=["content"],
+        ),
+        "tags": VaultConfig(
+            "tags",
+            "tag_vault",
+            "tags",
+            "get_all_tags_data",
+            TagCollection,
+            requires_cast=False,
+        ),
+        "tasks": VaultConfig(
+            "tasks",
+            "task_vault",
+            "tasks",
+            "get_user_tasks_data",
+            TaskCollection,
+            dependencies=["user"],
+        ),
+        "challenges": VaultConfig(
+            "challenges",
+            "challenge_vault",
+            "challenges",
+            "get_all_user_challenges_data",
+            ChallengeCollection,
+            dependencies=["user", "tasks"],
+        ),
+    }
+
+    # ─── Initialization ────────────────────────────────────────────────────────────
+    def __init__(self, client: HabiticaClient | None = None) -> None:
+        """Initialize the DataVault and its underlying repository vaults."""
+        self.client: HabiticaClient = client or HabiticaClient()
+        self.path: Path = app_config.storage.get_database_directory()
+        self.path.mkdir(parents=True, exist_ok=True)
+
+        self.user_vault: UserVault = UserVault()
+        self.party_vault: PartyVault = PartyVault()
+        self.content_vault: ContentVault = ContentVault()
+        self.task_vault: TaskVault = TaskVault()
+        self.challenge_vault: ChallengeVault = ChallengeVault()
+        self.tag_vault: TagVault = TagVault()
+
+        self._initialize_collections()
+
+        log.info(f"{icons.INFO} Vault initialized.")
+
+    def _initialize_collections(self) -> None:
+        """Reset all data collections to their initial empty state."""
+        self.user: UserCollection | None = None
+        self.party: PartyCollection | None = None
+        self.game_content: ContentCollection | None = None
+        self.tasks: TaskCollection | None = None
+        self.tags: TagCollection | None = None
+        self.challenges: ChallengeCollection | None = None
+
+    # ─── Public API: Comprehensive Fetch ───────────────────────────────────────────
+    async def get_data(
+        self,
+        mode: SaveStrategy,
+        debug: bool,
+        force: bool = False,
+        with_inbox: bool = False,
+        with_challenges: bool = False,
+    ) -> None:
+        """Fetch all primary data from the API, respecting dependencies."""
+        if force:
+            log.debug(f"{icons.BUG} Clearing existing data for force refresh.")
+            self.clear_data()
+            log.info(f"{icons.INFO} Force-refreshing all data...")
+
+        try:
+            # Step 1: Fetch independent data concurrently
+            log.info(f"{icons.INFO} Loading concurrent data (content, party)...")
+            await asyncio.gather(
+                self._get_data_generic("content", mode, debug, force),
+                self._get_data_generic("party", mode, debug, force),
+            )
+
+            # Step 2: Load user data (depends on content)
+            if self.game_content is None:
+                log.error(f"{icons.ERROR} Game content failed to load, aborting.")
+                return
+
+            log.info(f"{icons.INFO} Loading user data...")
+            if with_inbox:
+                await self._get_user_data_with_inbox(mode, debug, force)
+            else:
+                await self._get_data_generic("user", mode, debug, force)
+
+            # Step 3: Load tasks (depends on user)
+            if self.user is None:
+                log.error(
+                    f"{icons.ERROR} User content failed to load, skipping dependent data.",
+                )
+                return
+
+            log.info(f"{icons.INFO} Loading tasks...")
+            await self._get_data_generic("tasks", mode, debug, force)
+
+            # Step 4: Load challenges (depends on tasks)
+            if with_challenges:
+                if self.tasks is None:
+                    log.error(
+                        f"{icons.ERROR} Tasks failed to load, cannot load challenges.",
+                    )
+                    return
+
+                log.info(f"{icons.INFO} Loading challenges...")
+                await self._get_data_generic("challenges", mode, debug, force)
+
+            log.success(f"{icons.CHECK} Data fetching completed successfully.")
+
+        except Exception as e:
+            log.error(f"{icons.ERROR} Error during data fetching: {e!s}")
+            raise
+
+    # ─── Public API: Granular Updates ──────────────────────────────────────────────
+    async def update_user_only(
+        self,
+        mode: SaveStrategy = "smart",
+        debug: bool = False,
+        force: bool = False,
+        with_inbox: bool = False,
+    ) -> None:
+        """Fetch or update only the user data."""
+        log.info(f"{icons.INFO} Updating user data only...")
+
+        await self._ensure_dependencies("user", mode, debug, force)
+
+        if with_inbox:
+            await self._get_user_data_with_inbox(mode, debug, force)
+        else:
+            await self._get_data_generic("user", mode, debug, force)
+
+        log.success(f"{icons.CHECK} User data update completed.")
+
+    async def update_tasks_only(
+        self,
+        mode: SaveStrategy = "smart",
+        debug: bool = False,
+        force: bool = False,
+    ) -> None:
+        """Fetch or update only the user's tasks."""
+        log.info(f"{icons.INFO} Updating tasks only...")
+
+        await self._ensure_dependencies("tasks", mode, debug, force)
+        await self._get_data_generic("tasks", mode, debug, force)
+
+        log.success(f"{icons.CHECK} Tasks update completed.")
+
+    async def update_challenges_only(
+        self,
+        mode: SaveStrategy = "smart",
+        debug: bool = False,
+        force: bool = False,
+    ) -> None:
+        """Fetch or update only the user's challenges."""
+        log.info(f"{icons.INFO} Updating challenges only...")
+
+        await self._ensure_dependencies("challenges", mode, debug, force)
+        await self._get_data_generic("challenges", mode, debug, force)
+
+        log.success(f"{icons.CHECK} Challenges update completed.")
+
+    async def update_tags_only(
+        self,
+        mode: SaveStrategy = "smart",
+        debug: bool = False,
+        force: bool = False,
+    ) -> None:
+        """Fetch or update only the user's tags."""
+        log.info(f"{icons.INFO} Updating tags only...")
+
+        await self._get_data_generic("tags", mode, debug, force)
+
+        log.success(f"{icons.CHECK} Tags update completed.")
+
+    async def update_party_only(
+        self,
+        mode: SaveStrategy = "smart",
+        debug: bool = False,
+        force: bool = False,
+    ) -> None:
+        """Fetch or update only the user's party data."""
+        log.info(f"{icons.INFO} Updating party data only...")
+
+        await self._get_data_generic("party", mode, debug, force)
+
+        log.success(f"{icons.CHECK} Party data update completed.")
+
+    async def update_content_only(
+        self,
+        mode: SaveStrategy = "smart",
+        debug: bool = False,
+        force: bool = False,
+    ) -> None:
+        """Fetch or update only the game content (e.g., events, gear)."""
+        log.info(f"{icons.INFO} Updating game content only...")
+
+        await self._get_data_generic("content", mode, debug, force)
+
+        log.success(f"{icons.CHECK} Game content update completed.")
+
+    # ─── Public API: Refresh Scenarios ─────────────────────────────────────────────
+    async def refresh_quick(self, force: bool = False) -> None:
+        """Perform a fast refresh of user, tasks, and tags."""
+        await self.update_user_only(force=force)
+        await self.update_tasks_only(force=force)
+        await self.update_tags_only(force=force)
+
+    async def refresh_standard(self, force: bool = False) -> None:
+        """Perform a standard, comprehensive data refresh."""
+        await self.get_data(
+            "smart",
+            False,
+            force,
+            with_inbox=False,
+            with_challenges=False,
+        )
+
+    async def refresh_with_challenges(self, force: bool = False) -> None:
+        """Perform a standard refresh including challenges."""
+        await self.get_data(
+            "smart",
+            False,
+            force,
+            with_inbox=False,
+            with_challenges=True,
+        )
+
+    async def refresh_with_full_inbox(self, force: bool = False) -> None:
+        """Perform a standard refresh including all inbox messages."""
+        await self.get_data(
+            "smart",
+            False,
+            force,
+            with_inbox=True,
+            with_challenges=False,
+        )
+
+    async def refresh_everything(self, force: bool = False) -> None:
+        """Perform a full refresh including challenges and all inbox messages."""
+        await self.get_data(
+            "smart",
+            False,
+            force,
+            with_inbox=True,
+            with_challenges=True,
+        )
+
+    # ─── Public API: State and Data Access ─────────────────────────────────────────
+    def is_data_loaded(self, with_challenges: bool = False) -> bool:
+        """Check if all essential data collections are loaded."""
+        required_attrs = ["user", "party", "game_content", "tasks", "tags"]
+        if with_challenges:
+            required_attrs.append("challenges")
+
+        missing_items = [name for name in required_attrs if getattr(self, name) is None]
+
+        if missing_items:
+            log.debug(f"{icons.BUG} Missing data items: {', '.join(missing_items)}")
+
+            return False
+
+        log.debug(f"{icons.BUG} All required data is loaded.")
+
+        return True
+
+    def clear_data(self) -> None:
+        """Clear all cached data collections from memory."""
+        log.debug(f"{icons.BUG} Clearing all cached data collections.")
+        self._initialize_collections()
+        log.debug(f"{icons.BUG} All data collections cleared.")
+
+    def get_data_summary(self) -> dict[str, Any]:
+        """Return a summary of the current data state."""
+        summary = {
+            "user_loaded": self.user is not None,
+            "party_loaded": self.party is not None,
+            "game_content_loaded": self.game_content is not None,
+            "tasks_loaded": self.tasks is not None,
+            "tags_loaded": self.tags is not None,
+            "challenges_loaded": self.challenges is not None,
+            "tasks_count": len(self.tasks.all_tasks) if self.tasks else 0,
+            "challenges_count": len(self.challenges.challenges)
+            if self.challenges
+            else 0,
+            "tags_count": len(self.tags) if self.tags else 0,
+        }
+        log.debug(f"{icons.BUG} Data summary: {summary}")
+
+        return summary
+
+    def ensure_user_loaded(self) -> UserCollection:
+        """Return the UserCollection, raising an error if not loaded."""
+        if self.user is None:
+            msg = "User data not loaded. Call a fetch method first."
+            raise ValueError(msg)
+
+        return self.user
+
+    def ensure_tasks_loaded(self) -> TaskCollection:
+        """Return the TaskCollection, raising an error if not loaded."""
+        if self.tasks is None:
+            msg = "Tasks data not loaded. Call a fetch method first."
+            raise ValueError(msg)
+
+        return self.tasks
+
+    def ensure_game_content_loaded(self) -> ContentCollection:
+        """Return the ContentCollection, raising an error if not loaded."""
+        if self.game_content is None:
+            msg = "Game content data not loaded. Call a fetch method first."
+            raise ValueError(msg)
+
+        return self.game_content
+
+    def ensure_party_loaded(self) -> PartyCollection:
+        """Return the PartyCollection, raising an error if not loaded."""
+        if self.party is None:
+            msg = "Party data not loaded. Call a fetch method first."
+            raise ValueError(msg)
+
+        return self.party
+
+    def ensure_tags_loaded(self) -> TagCollection:
+        """Return the TagCollection, raising an error if not loaded."""
+        if self.tags is None:
+            msg = "Tags data not loaded. Call a fetch method first."
+            raise ValueError(msg)
+
+        return self.tags
+
+    def ensure_challenges_loaded(self) -> ChallengeCollection:
+        """Return the ChallengeCollection, raising an error if not loaded."""
+        if self.challenges is None:
+            msg = "Challenges data not loaded. Call a fetch method first."
+            raise ValueError(msg)
+
+        return self.challenges
+
+    # ─── Context Manager Protocol ──────────────────────────────────────────────────
+    async def __aenter__(self) -> Self:
+        """Enter the async context, loading standard data."""
+        log.info(f"{icons.INFO} Entering DataVault context.")
+
+        await self.refresh_standard()
+
+        return self
+
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: object,
+    ) -> None:
+        """Exit the async context."""
+        if exc_type:
+            log.error(f"{icons.ERROR} Exiting DataVault due to exception: {exc_val!s}")
+        else:
+            log.info(f"{icons.INFO} Exiting DataVault context successfully.")
+
+    # ─── Internal: Core Data Loading Logic ─────────────────────────────────────────
+    async def _get_data_generic(
+        self,
+        vault_type: VaultType,
+        mode: SaveStrategy,
+        debug: bool,
+        force: bool = False,
+    ) -> None:
+        """Fetch, process, and cache data for any vault type."""
+        log.debug(f"{icons.BUG} Processing {vault_type} content...")
+
+        if vault_type not in self.VAULT_CONFIGS:
+            log.error(f"{icons.ERROR} Unknown vault type: {vault_type}")
+
+            return
+
+        if not force and self._get_collection_attr(vault_type) is not None:
+            log.debug(f"{icons.BUG} {vault_type.title()} is already loaded.")
+
+            return
+
+        # Attempt to load from local cache unless `force` is true
+        if not force:
+            is_ready, issues = self._vault_is_ready(vault_type)
+            if is_ready:
+                collection = await self._load_from_database(vault_type)
+                if collection:
+                    self._set_collection_attr(vault_type, collection)
+                    log.debug(
+                        f"{icons.BUG} {vault_type.title()} data loaded from database (cache was ready).",
+                    )
+
+                    return
+                issues.append(
+                    f"Failed to load {vault_type} from database despite cache being ready.",
+                )
+            if issues:
+                log.debug(
+                    f"{icons.BUG} {vault_type.title()} cache issues: {', '.join(issues)}. Proceeding to API fetch.",
+                )
+
+        # Fetch fresh data from the API
+        log.debug(f"{icons.BUG} Fetching fresh {vault_type} content from API...")
+
+        await self._ensure_dependencies(vault_type, mode, debug, force)
+
+        try:
+            temp_collection = await self._fetch_and_process_data(
+                vault_type,
+                mode,
+                debug,
+            )
+            vault = self._get_vault_by_type(vault_type)
+
+            if not vault:
+                log.error(f"{icons.ERROR} Vault not found for type: {vault_type}")
+
+                return
+            await asyncio.to_thread(vault.save, temp_collection, mode, debug)  # type: ignore
+            collection = await self._load_from_database(vault_type)
+
+            if collection:
+                self._set_collection_attr(vault_type, collection)
+                log.debug(
+                    f"{icons.BUG} {vault_type.title()} content fetched, saved, and loaded.",
+                )
+            else:
+                log.error(
+                    f"{icons.ERROR} Failed to load {vault_type} content from database after saving.",
+                )
+                msg = f"Failed to load {vault_type} from database"
+                raise ValueError(msg)
+
+        except Exception as e:
+            log.error(f"{icons.ERROR} Failed to fetch {vault_type} content: {e!s}")
+            raise
+
+    async def _get_user_data_with_inbox(
+        self,
+        mode: SaveStrategy,
+        debug: bool,
+        force: bool = False,
+    ) -> None:
+        """Fetch user data and ensure the inbox is fully populated."""
+        log.debug(f"{icons.BUG} Processing user content with full inbox...")
+
+        if not force:
+            is_ready, issues = self._vault_is_ready("user")
+            if is_ready:
+                try:
+                    inbox_count = await asyncio.to_thread(
+                        self.user_vault.count,
+                        UserMessage,
+                    )
+                    if inbox_count > INBOX_MINIMAL:
+                        collection = await self._load_from_database("user")
+                        if collection:
+                            self.user = collection
+                            log.debug(
+                                f"{icons.BUG} User data with sufficient inbox ({inbox_count}) loaded from cache.",
+                            )
+
+                            return
+                        issues.append(
+                            "Failed to load user from cache despite being ready with sufficient inbox.",
+                        )
+                    else:
+                        issues.append(
+                            f"Insufficient inbox messages in cache: {inbox_count} <= {INBOX_MINIMAL}",
+                        )
+                except Exception as e:
+                    issues.append(f"Error checking inbox count: {e!s}")
+            if issues:
+                log.debug(
+                    f"{icons.BUG} User vault (inbox) issues: {', '.join(issues)}. Fetching from API.",
+                )
+
+        await self._ensure_dependencies("user", mode, debug, force)
+        log.debug(
+            f"{icons.BUG} Fetching fresh user content with full inbox from API...",
+        )
+
+        try:
+            user_content = await self.client.get_current_user_data()
+            inbox_content = await self.client.get_all_inbox_messages_data()
+            for msg in inbox_content:
+                user_content["inbox"]["messages"].update({msg.get("_id"): msg})
+
+            temp_user = await self._process_user_data(user_content, mode, debug)
+            await asyncio.to_thread(self.user_vault.save, temp_user, mode, debug)
+            self.user = await self._load_from_database("user")
+
+            if self.user:
+                count = await asyncio.to_thread(self.user_vault.count, UserMessage)
+                log.debug(
+                    f"{icons.BUG} User content with inbox fetched and loaded ({count} messages).",
+                )
+            else:
+                log.error(
+                    f"{icons.ERROR} Failed to load user content from database after saving.",
+                )
+
+        except Exception as e:
+            log.error(f"{icons.ERROR} Failed to fetch user content with inbox: {e!s}")
+            raise
+
+    # ─── Internal: Data Processing Helpers ─────────────────────────────────────────
+    async def _fetch_and_process_data(
+        self,
+        vault_type: VaultType,
+        mode: SaveStrategy,
+        debug: bool,
+    ) -> Any:
+        """Fetch raw data from the API and delegate to the correct processor."""
+        config = self.VAULT_CONFIGS[vault_type]
+
+        try:
+            api_method = getattr(self.client, config.fetch_method)
+            api_data = await api_method()
+
+            if vault_type == "user":
+                return await self._process_user_data(api_data, mode, debug)
+
+            if vault_type == "challenges":
+                return self._process_challenges_data(api_data)
+
+            if vault_type == "tasks":
+                return self._process_tasks_data(api_data)
+
+            return self._process_generic_data(vault_type, api_data)
+
+        except Exception as e:
+            log.error(f"{icons.ERROR} Failed to fetch {vault_type} content: {e!s}")
+            raise
+
+    async def _process_user_data(
+        self,
+        api_data: Any,
+        mode: SaveStrategy,
+        debug: bool,
+    ) -> UserCollection:
+        """Process user data, which includes handling embedded tags."""
+        game_content = self.ensure_game_content_loaded()
+        temp_user = UserCollection.from_api_data(cast("dict", api_data), game_content)
+
+        # User data contains tags, so we can update them at the same time
+        temp_tags = TagCollection.from_api_data(cast("list", api_data.get("tags", [])))
+        await asyncio.to_thread(self.tag_vault.save, temp_tags, mode, debug)
+        self.tags = await self._load_from_database("tags")
+
+        return temp_user
+
+    def _process_tasks_data(self, api_data: Any) -> TaskCollection:
+        """Process tasks data, which depends on user data."""
+        user = self.ensure_user_loaded()
+
+        return TaskCollection.from_api_data(
+            cast("SuccessfulResponseData", api_data),
+            user,
+        )
+
+    def _process_challenges_data(self, api_data: Any) -> ChallengeCollection:
+        """Process challenges data, which depends on user and task data."""
+        user = self.ensure_user_loaded()
+        tasks = self.ensure_tasks_loaded()
+
+        return ChallengeCollection.from_api_data(
+            challenges_data=api_data,
+            user=user,
+            tasks=tasks,
+        )
+
+    def _process_generic_data(self, vault_type: VaultType, api_data: Any) -> Any:
+        """Process data for simple collections without complex dependencies."""
+        config = self.VAULT_CONFIGS[vault_type]
+
+        if config.requires_cast:
+            return config.collection_class.from_api_data(cast("dict | list", api_data))
+
+        return config.collection_class.from_api_data(api_data)
+
+    # ─── Internal: State & Dependency Helpers ──────────────────────────────────────
+    async def _ensure_dependencies(
+        self,
+        vault_type: VaultType,
+        mode: SaveStrategy,
+        debug: bool,
+        force: bool,
+    ) -> None:
+        """Recursively fetch and load any missing dependencies for a vault type."""
+        config = self.VAULT_CONFIGS[vault_type]
+
+        for dep in config.dependencies:
+            if self._get_collection_attr(dep) is None:
+                log.warning(
+                    f"{icons.WARNING} Dependency '{dep}' not loaded. Fetching it first...",
+                )
+                await self._get_data_generic(dep, mode, debug, force)
+
+                if self._get_collection_attr(dep) is None:
+                    msg = f"Failed to load required dependency: {dep}"
+                    raise ValueError(msg)
+
+    def _vault_is_ready(self, vault_type: VaultType) -> tuple[bool, list[str]]:
+        """Check if a local vault file is present and valid for loading."""
+        issues: list[str] = []
+        try:
+            vault = self._get_vault_by_type(vault_type)
+            if not vault:
+                issues.append(f"Vault not found: {vault_type}")
+
+                return False, issues
+
+            return vault.is_vault_ready_for_load()
+
+        except Exception as e:
+            issues.append(f"Error checking vault readiness: {e!s}")
+
+            return False, issues
+
+    async def _load_from_database(self, vault_type: VaultType) -> Any | None:
+        """Load a data collection from its corresponding vault file."""
+        try:
+            vault = self._get_vault_by_type(vault_type)
+            if not vault:
+                log.error(f"{icons.ERROR} Unknown vault type: {vault_type}")
+
+                return None
+
+            loaded_data = vault.load()
+            if loaded_data:
+                log.debug(
+                    f"{icons.BUG} {vault_type.title()} data loaded successfully from database.",
+                )
+
+                return loaded_data
+
+            log.debug(f"{icons.BUG} No {vault_type} data found in database.")
+
+            return None
+
+        except Exception as e:
+            log.error(
+                f"{icons.ERROR} Failed to load {vault_type} data from database: {e!s}",
+            )
+
+            return None
+
+    def _get_vault_by_type(self, vault_type: VaultType) -> AnyVault | None:
+        """Get the vault instance corresponding to a vault type string."""
+        vault_map: dict[VaultType, AnyVault] = {
+            "user": self.user_vault,
+            "party": self.party_vault,
+            "content": self.content_vault,
+            "tasks": self.task_vault,
+            "challenges": self.challenge_vault,
+            "tags": self.tag_vault,
+        }
+
+        return vault_map.get(vault_type)
+
+    def _get_collection_attr(self, vault_type: VaultType) -> Any | None:
+        """Get the data collection attribute (e.g., self.user) by vault type."""
+        if config := self.VAULT_CONFIGS.get(vault_type):
+            return getattr(self, config.collection_attr, None)
+
+        return None
+
+    def _set_collection_attr(self, vault_type: VaultType, value: Any) -> None:
+        """Set the data collection attribute (e.g., self.user) by vault type."""
+        if config := self.VAULT_CONFIGS.get(vault_type):
+            setattr(self, config.collection_attr, value)

@@ -17,7 +17,7 @@ dependencies = [
     "httpx>=0.27.0",
     "python-box>=7.1.1",
     "python-dateutil",
-    "art"
+    "art",
 ]
 
 [tool.uv]
@@ -29,47 +29,64 @@ dev-dependencies = [
     "pytest-asyncio>=0.23.0",
     "sqlalchemy[mypy]",
     "pydantic[mypy]",
-    "textual-dev"
+    "textual-dev",
 ]
+
 [project.scripts]
 habitui = "habitui.main:main"
+
+[tool.black]
+line-length = 99
+target-version = ["py313"]
+
 [tool.ruff]
-line-length = 120
+line-length = 88
 target-version = "py313"
 src = ["src"]
+preview = true
+fix = true
 show-fixes = true
+indent-width = 4
 
 [tool.ruff.format]
 docstring-code-format = true
-docstring-code-line-length = 150
-indent-style = "tab"
+docstring-code-line-length = 120
+indent-style = "space"
 line-ending = "auto"
 preview = true
 quote-style = "double"
 skip-magic-trailing-comma = false
 
 [tool.ruff.lint]
-select = [
-    "E", # pycodestyle errors
-    "W", # pycodestyle warnings
-    "F", # pyflakes
-    "I", # isort
-    "B", # flake8-bugbear
-    "C4", # flake8-comprehensions
-    "UP", # pyupgrade
-    "N", # pep8-naming
-    "SIM", # flake8-simplify
-    "TCH", # flake8-type-checking
-
-]
+select = ["ALL"]
 ignore = [
-    "E501", # line too long, handled by black/ruff format
-    "B008", # do not perform function calls in argument defaults
-    "C901", # too complex
-    "W191", # indentation contains tabs
-    "E203", # whitespace before ':'
-    "UP007", # Use X | Y for type annotations (sometimes conflicts with sqlmodel)
-
+    "ANN401",
+    "BLE001",
+    "D100", # Missing docstring in public module
+    "D101", # Missing docstring in public class
+    "D102", # Missing docstring in public method (NOTE: often includes __init__)
+    "D103", # Missing docstring in public function
+    "D104", # Missing docstring in public package
+    "D105", # Missing docstring in magic method (e.g., __str__, __repr__)
+    "D107",
+    "DOC201",
+    "DOC501",
+    "FBT001",
+    "FBT002",
+    "FBT003",
+    "PGH003",
+    "RUF012",
+    "PLR2004",
+    "TRY300",
+    "TRY301",
+    "CPY001",
+    "DOC402",
+    "PLR6301",
+    "TC001",
+    "TC003",
+    "ANN002",
+    "ANN003",
+    "S105"
 ]
 
 [tool.ruff.lint.per-file-ignores]
@@ -94,7 +111,7 @@ max-bool-expr = 10
 max-branches = 15
 max-locals = 20
 max-nested-blocks = 10
-max-positional-args = 3
+max-positional-args = 5
 max-public-methods = 30
 max-statements = 75
 max-returns = 10
@@ -135,7 +152,7 @@ section-order = [
     "textual",
     "third-party",
     "first-party",
-    "local-folder"
+    "local-folder",
 ]
 
 [tool.ruff.lint.isort.sections]
@@ -151,7 +168,7 @@ runtime-evaluated-base-classes = [
     "sqlmodel.SQLModel",
     "sqlalchemy.orm.DeclarativeBase",
     "textual.app.App",
-    "textual.widget.Widget"
+    "textual.widget.Widget",
 ]
 runtime-evaluated-decorators = ["pydantic.validate_call", "attrs.define"]
 
@@ -173,9 +190,11 @@ plugins = ["pydantic.mypy", "sqlalchemy.ext.mypy.plugin"]
 init_forbid_extra = true
 init_typed = true
 warn_required_dynamic_aliases = true
+
 [[tool.mypy.overrides]]
 module = "sqlmodel.sql._expression_select_gen"
 warn_unused_ignores = false
+
 [[tool.mypy.overrides]]
 module = "sqlmodel.*"
 ignore_missing_imports = true
