@@ -68,7 +68,7 @@ class MinimalLogger:
     def setup(
         self,
         console_level: str = "INFO",
-        file_level: str = "DEBUG",
+        file_level: str = "INFO",
         log_file: str = "app.log",
         rotation: str = "10 MB",
         retention: str = "7 days",
@@ -182,8 +182,8 @@ logger_instance = MinimalLogger()
 
 
 def setup_logging(
-    console_level: str = "TRACE",
-    file_level: str = "DEBUG",
+    console_level: str = "INFO",
+    file_level: str = "INFO",
     log_file: str = "app.log",
     **kwargs: str,
 ) -> None:

@@ -8,8 +8,9 @@ from textual.binding import Binding
 from textual.widgets import Footer, Header, TabPane, TabbedContent
 from textual.containers import Vertical, Horizontal
 
-from habitui.tui.main.rich_log import TextualLogConsole
+from habitui.tui.main import TextualLogConsole
 
+from .tag_tab import TagsTab
 from .profile_tab import ProfileTab
 
 
@@ -39,6 +40,7 @@ class MainScreen(Screen):
     def compose(self) -> ComposeResult:
         """Composes the main layout of the screen."""
         yield Header(show_clock=True)
+        yield self.app.habitica_api.progress_widget
         with Horizontal(id="content-area"):
             with (
                 Vertical(id="main-container"),
@@ -49,7 +51,7 @@ class MainScreen(Screen):
                 with TabPane("Party", id="party"):
                     pass
                 with TabPane("Tags", id="tags"):
-                    pass
+                    yield TagsTab()
                 with TabPane("Inbox", id="inbox"):
                     pass
                 with TabPane("Challenges", id="challenges"):

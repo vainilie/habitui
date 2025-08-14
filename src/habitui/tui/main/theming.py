@@ -8,13 +8,14 @@ from typing import TYPE_CHECKING
 
 from textual.theme import Theme as TextualTheme
 
-from habitui.tui.main_app import HabiTUI
 from habitui.custom_logger import log
 from habitui.ui.theme_manager import DEFAULT_THEMES_JSON_PATH, StyleMapper
 
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+    from habitui.tui.main_app import HabiTUI
 
 
 ThemeData = dict[str, str]

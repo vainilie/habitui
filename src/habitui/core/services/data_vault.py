@@ -156,6 +156,7 @@ class DataVault:
             await asyncio.gather(
                 self._get_data_generic("content", mode, debug, force),
                 self._get_data_generic("party", mode, debug, force),
+                self._get_data_generic("tags", mode, debug, force),  # ← AGREGAR ESTO
             )
 
             # Step 2: Load user data (depends on content)
@@ -631,7 +632,6 @@ class DataVault:
         temp_tags = TagCollection.from_api_data(cast("list", api_data.get("tags", [])))
         await asyncio.to_thread(self.tag_vault.save, temp_tags, mode, debug)
         self.tags = await self._load_from_database("tags")
-
         return temp_user
 
     def _process_tasks_data(self, api_data: Any) -> TaskCollection:

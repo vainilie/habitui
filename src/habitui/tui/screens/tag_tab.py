@@ -13,6 +13,7 @@ from habitui.ui import icons
 from habitui.core.models import TagCollection
 from habitui.custom_logger import log
 from habitui.tui.generic.base_tab import BaseTab
+from habitui.core.models.tag_model import TagComplex
 from habitui.tui.modals.tags_modal import (
     create_tag_edit_modal,
     create_tag_delete_modal,
@@ -31,6 +32,7 @@ from habitui.tui.generic.dashboard_panels import (
 if TYPE_CHECKING:
     from textual.app import ComposeResult
 
+    from habitui.core.models import TagComplex
     from habitui.tui.main_app import HabiTUI
 
 
@@ -39,15 +41,24 @@ class TagsTab(BaseTab):
 
     # ─── Configuration ─────────────────────────────────────────────────────────────
     BINDINGS: list[Binding] = [
-        Binding("d", "delete_tag_workflow", "Delete"),
         Binding("a", "add_tag_workflow", "Add"),
-        Binding("e", "edit_tag_workflow", "Edit"),
         Binding("c", "configure_tag_hierarchy", "Configure"),
+        Binding("d", "delete_tag_workflow", "Delete"),
+        Binding("e", "edit_tag_workflow", "Edit"),
+        Binding("m", "toggle_multiselect", "Multiselection"),
+        Binding("n", "sort_name", "Name Sort"),
+        Binding("o", "sort_original", "Default Sort"),
         Binding("r", "refresh_data", "Refresh"),
+        Binding("s", "toggle_sort", "Toggle Sort"),
+        Binding("u", "sort_use", "Use Sort"),
+        Binding("space", "select_tag", "Select"),
     ]
 
-    tags_collection: reactive[TagCollection] = reactive(None, recompose=True)
+    tags_collection: reactive[TagCollection | None] = reactive(None, recompose=True)
     tags_count: reactive[dict] = reactive(dict, recompose=True)
+    multiselect: reactive[bool] = reactive(False, recompose=True)
+    tags_selected: reactive[list] = reactive(list)
+    current_sort_index: reactive[int] = reactive(2, recompose=True)
 
     def __init__(self) -> None:
         super().__init__()
@@ -55,13 +66,13 @@ class TagsTab(BaseTab):
         log.info("TagsTab: __init__ called")
         self.tags_collection = self.vault.ensure_tags_loaded()
         self.tags_count = self.vault.tasks.get_tag_count()  # type: ignore
+        self.sort_modes = ["use", "name", ""]
 
     # ─── UI Composition ────────────────────────────────────────────────────────────
 
     def compose(self) -> ComposeResult:
         """Compose the layout using the new dashboard components."""
         log.info("TagsTab: compose() called")
-
         with VerticalScroll(classes="dashboard-main-container"):
             with Horizontal(classes="dashboard-panel-row"):
                 yield self._create_attribute_tags_panel()
@@ -221,15 +232,41 @@ class TagsTab(BaseTab):
         free_tags_node,
     ) -> None:
         """Populate tree nodes from tags collection."""
-        for tag in self.tags_collection.base_tags:
-            count = self.tags_count.get(tag, 0)
-            name = f"{tag.name} ({count})"
+
+        def sort_by(
+            order: str,
+            tag_list: list[TagComplex],
+        ) -> list[TagComplex]:
+            if order == "use":
+                return sorted(
+                    tag_list,
+                    key=lambda t: self.tags_count.get(t.id, 0),
+                    reverse=True,
+                )
+            if order == "name":
+                return sorted(tag_list, key=lambda t: t.name, reverse=False)
+            return tag_list
+
+        order = self.sort_modes[self.current_sort_index]
+
+        def sort_tags(tags) -> list[TagComplex]:
+            return sort_by(order, tags)
+
+        # ── Base & Personal Tags ─────────────────────────────────────────────
+        base_tags = sort_tags(self.tags_collection.base_tags)
+        personal_tags = sort_tags(self.tags_collection.personal_tags)
+
+        for tag in base_tags:
+            count = self.tags_count.get(tag.id, 0)  # ← corregí: get por id
+            name = f"({count}) {tag.name}"
             free_tags_node.add_leaf(name, data=tag)
 
-        for tag in self.tags_collection.personal_tags:
-            ownership_node.add_leaf(tag.name, data=tag)
+        for tag in personal_tags:
+            count = self.tags_count.get(tag.id, 0)  # ← corregí: get por id
+            name = f"({count}) {tag.name}"
+            ownership_node.add_leaf(name, data=tag)
 
-        # Populate attribute nodes
+        # ── Attribute Categories ─────────────────────────────────────────────
         attribute_categories = [
             "str_tags",
             "int_tags",
@@ -252,8 +289,11 @@ class TagsTab(BaseTab):
         ):
             if hasattr(self.tags_collection, category):
                 category_node = attribute_node.add(label, expand=False)
-                for tag in getattr(self.tags_collection, category):
-                    category_node.add_leaf(tag.get("name", "Unnamed"), data=tag)
+                tags_list = sort_tags(getattr(self.tags_collection, category))
+                for tag in tags_list:
+                    count = self.tags_count.get(tag.id, 0)  # ← corregí: get por id
+                    name = f"({count}) {tag.name}"
+                    category_node.add_leaf(name, data=tag)
 
     # ─── Data Handling ─────────────────────────────────────────────────────────────
 
@@ -262,7 +302,7 @@ class TagsTab(BaseTab):
         """Refresh tags data using BaseTab API access."""
         try:
             await self.vault.update_tags_only("smart", False, True)
-            self.tags_collection = self.vault.ensure_tags_loaded()
+            self.tags_collection = self.vault.tags
             self.mutate_reactive(TagsTab.tags_collection)
             await self.vault.update_tasks_only("smart", False, True)
             self.tags_count = self.vault.tasks.get_tag_count()  # type: ignore
@@ -281,7 +321,15 @@ class TagsTab(BaseTab):
                 severity="error",
             )
 
-    # ─── Actions ───────────────────────────────────────────────────────────────────
+        # ─── Actions ───────────────────────────────────────────────────────────────────
+
+    def action_toggle_multiselect(self) -> None:
+        if self.multiselect:
+            self.multiselect = False
+            self.notify("Multiselect disabled")
+        else:
+            self.multiselect = True
+            self.notify("Multiselect enabled")
 
     def action_add_tag_workflow(self) -> None:
         """Initiate the tag creation workflow."""
@@ -473,19 +521,30 @@ class TagsTab(BaseTab):
     def on_tree_node_selected(self, event: Tree.NodeSelected) -> None:
         """Handle tag selection from tree."""
         if event.node.data:
-            tag_name = (
-                event.node.data.get("name", "Unknown")
-                if isinstance(event.node.data, dict)
-                else str(event.node.data)
-            )
-            log.info(f"Selected tag: {tag_name}")
+            if self.multiselect:
+                current_label = str(event.node.label)
 
-    def _get_selected_tag(self) -> dict | None:
-        try:
-            tree = self.query_one("#tags-tree", Tree)
-            cursor_node = tree.cursor_node
-            if cursor_node and cursor_node.data and isinstance(cursor_node.data, dict):
-                return cursor_node.data
-        except Exception:
-            pass
-        return None
+                if current_label.startswith("✓ "):
+                    # Deseleccionar
+                    event.node.set_label(current_label[2:])
+                    # Remover de la lista
+                    if event.node.data in self.tags_selected:
+                        self.tags_selected.remove(event.node.data)
+                else:
+                    # Seleccionar
+                    event.node.set_label(f"✓ {current_label}")
+                    self.tags_selected.append(event.node.data)
+                log.info(f"Selected tags: {self.tags_selected}")
+            log.info(f"Selected tag: {event.node.data.name}")
+
+    def action_toggle_sort(self):
+        self.current_sort_index = (self.current_sort_index + 1) % len(self.sort_modes)
+
+    def action_sort_use(self):
+        self.sort_by = self.sort_modes.index("use")
+
+    def action_sort_name(self):
+        self.current_sort_index = self.sort_modes.index("name")
+
+    def action_sort_original(self):
+        self.current_sort_index = self.sort_modes.index("")

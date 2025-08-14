@@ -132,7 +132,7 @@
 
 /* ─── Dashboard ──────────────────────────────────────────────────────────── */
 
-    ProfileTab {
+    ProfileTab,TagsTab {
         height:     auto;
 
     }
@@ -284,3 +284,11 @@
         grid-size:          2 1;
         grid-columns:       3fr 2fr;
     }
+
+
+    /* En tu archivo .tcss (ej. main_app.tcss) */
+
+SimpleProgressWidget.hidden {
+    display: none;
+}
+

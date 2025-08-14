@@ -26,7 +26,7 @@ class TextualLogConsole(RichLog):
         self.app: HabiTUI
 
     def on_mount(self) -> None:
-        self.app.setup_logging_widget(self)
+        self.app.logging.setup_logging_widget(self)
 
 
 # ─── Textual Sink for Loguru ──────────────────────────────────────────────────
@@ -93,11 +93,8 @@ class LoggingMixin:
         log_widget: TextualLogConsole,
         level: str = "INFO",
     ) -> None:
-        # Clean up existing sink if any
         if self._textual_sink_id is not None:
             remove_textual_sink(self._textual_sink_id)
-
-        # Setup new sink
         self._textual_sink_id = add_textual_sink(log_widget, level)
 
     def teardown_logging(self) -> None:

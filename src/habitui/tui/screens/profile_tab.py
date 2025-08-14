@@ -298,7 +298,6 @@ class ProfileTab(BaseTab):
         try:
             await self.vault.update_user_only("smart", False, True, False)
             self.user_collection = Box(self.vault.user.get_display_data())  # type: ignore
-
             self.mutate_reactive(ProfileTab.user_collection)
             self.notify(
                 f"{icons.CHECK} Profile data refreshed successfully!",
@@ -314,6 +313,8 @@ class ProfileTab(BaseTab):
             )
 
     # ─── Actions ───────────────────────────────────────────────────────────────────
+    async def action_refresh_data(self) -> None:
+        self.refresh_data()
 
     async def action_trigger_cron_run(self) -> None:
         """Triggers user cron using BaseTab client access."""
@@ -339,10 +340,10 @@ class ProfileTab(BaseTab):
         """Toggles user sleep status using BaseTab client access."""
         try:
             log.info(f"{icons.BED} Attempting to toggle sleep status...")
-            await self.vault.client.toggle_user_sleep_status()
 
             is_sleeping = self.vault.user.is_sleeping() if self.vault.user else False
-            sleep_status_message = "resting" if is_sleeping else "awake"
+            sleep_status_message = "awake" if is_sleeping is True else "resting"
+            await self.vault.client.toggle_user_sleep_status()
             self.refresh_data()
 
             self.notify(
@@ -392,11 +393,9 @@ class ProfileTab(BaseTab):
             payload = self._build_profile_payload(changes)
 
             if payload:
-                operations = [{"type": "update_user_settings", "data": payload}]
-                await self.execute_operation(
-                    operations,
-                    "Update user profile",
-                    sync_after="user",
+                self.app.habitica_api.queue_operation(
+                    "update_user_settings_or_data",
+                    update_payload=payload,
                 )
 
                 self.refresh_data()

@@ -774,7 +774,7 @@ class TaskCollection(HabiTuiBaseModel):
                     tags[tag] = 1
                 else:
                     tags[tag] += 1
-        return tags
+        return dict(sorted(tags.items(), key=lambda x: x[1], reverse=True))
 
     # ──────────────────────────────────────────────────────────────────────────────
     def __len__(self) -> int:
