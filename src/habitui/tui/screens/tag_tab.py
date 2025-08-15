@@ -9,23 +9,20 @@ from textual.widgets import Tree
 from textual.reactive import reactive
 from textual.containers import Horizontal, VerticalScroll
 
-from habitui.ui import icons
-from habitui.core.models import TagCollection
+from habitui.ui import icons, parse_emoji
+from habitui.core.models import TagComplex, TagCollection
+from habitui.tui.generic import (
+    Panel,
+    BaseTab,
+    GenericConfirmModal,
+    HabiticaChangesFormatter,
+    create_info_panel,
+    create_dashboard_row,
+)
 from habitui.custom_logger import log
-from habitui.tui.generic.base_tab import BaseTab
-from habitui.core.models.tag_model import TagComplex
 from habitui.tui.modals.tags_modal import (
     create_tag_edit_modal,
     create_tag_delete_modal,
-)
-from habitui.tui.generic.confirm_modal import (
-    GenericConfirmModal,
-    HabiticaChangesFormatter,
-)
-from habitui.tui.generic.dashboard_panels import (
-    Panel,
-    create_info_panel,
-    create_dashboard_row,
 )
 
 
@@ -51,7 +48,7 @@ class TagsTab(BaseTab):
         Binding("r", "refresh_data", "Refresh"),
         Binding("s", "toggle_sort", "Toggle Sort"),
         Binding("u", "sort_use", "Use Sort"),
-        Binding("space", "select_tag", "Select"),
+        Binding("escape", "clear_selection", "Clear Selection"),
     ]
 
     tags_collection: reactive[TagCollection | None] = reactive(None, recompose=True)
@@ -75,8 +72,10 @@ class TagsTab(BaseTab):
         log.info("TagsTab: compose() called")
         with VerticalScroll(classes="dashboard-main-container"):
             with Horizontal(classes="dashboard-panel-row"):
-                yield self._create_attribute_tags_panel()
-                yield self._create_ownership_tags_panel()
+                if self._create_attribute_tags_panel() is not None:
+                    yield self._create_attribute_tags_panel()
+                if self._create_ownership_tags_panel() is not None:
+                    yield self._create_ownership_tags_panel()
 
             yield self._create_tags_hierarchy_panel()
 
@@ -90,7 +89,7 @@ class TagsTab(BaseTab):
             rows.append(
                 create_dashboard_row(
                     label="STR",
-                    value=tag.name,  # type: ignore
+                    value=parse_emoji(tag.name),  # type: ignore
                     icon="FIRE",
                     element_id="str-tags-row",
                 ),
@@ -102,7 +101,7 @@ class TagsTab(BaseTab):
             rows.append(
                 create_dashboard_row(
                     label="INT",
-                    value=tag.name,  # type: ignore
+                    value=parse_emoji(tag.name),  # type: ignore
                     icon="AIR",
                     element_id="int-tags-row",
                 ),
@@ -114,7 +113,7 @@ class TagsTab(BaseTab):
             rows.append(
                 create_dashboard_row(
                     label="PER",
-                    value=tag.name,  # type: ignore
+                    value=parse_emoji(tag.name),  # type: ignore
                     icon="LEAF",
                     element_id="per-tags-row",
                 ),
@@ -125,7 +124,7 @@ class TagsTab(BaseTab):
             rows.append(
                 create_dashboard_row(
                     label="CON",
-                    value=tag.name,  # type: ignore
+                    value=parse_emoji(tag.name),  # type: ignore
                     icon="DROP",
                     element_id="con-tags-row",
                 ),
@@ -136,18 +135,19 @@ class TagsTab(BaseTab):
             rows.append(
                 create_dashboard_row(
                     label="None",
-                    value=tag.name,  # type: ignore
+                    value=parse_emoji(tag.name),  # type: ignore
                     icon="GHOST",
                     element_id="no-attr-tags-row",
                 ),
             )
-
-        return create_info_panel(
-            *rows,
-            title="Tags by Attribute",
-            title_icon="WAND",
-            element_id="attribute-tags-panel",
-        )
+        if len(rows) > 0:
+            return create_info_panel(
+                *rows,
+                title="Tags by Attribute",
+                title_icon="WAND",
+                element_id="attribute-tags-panel",
+            )
+        return None
 
     def _create_ownership_tags_panel(self) -> Panel:
         """Create ownership tags panel using new components."""
@@ -159,7 +159,7 @@ class TagsTab(BaseTab):
             rows.append(
                 create_dashboard_row(
                     label="Personal",
-                    value=tag.name,  # type: ignore
+                    value=parse_emoji(tag.name),  # type: ignore
                     icon="USER",
                     element_id="personal-tags-row",
                 ),
@@ -171,7 +171,7 @@ class TagsTab(BaseTab):
             rows.append(
                 create_dashboard_row(
                     label="Challenge",
-                    value=tag.name,  # type: ignore
+                    value=parse_emoji(tag.name),  # type: ignore
                     icon="TROPHY",
                     element_id="challenge-tags-row",
                 ),
@@ -183,18 +183,19 @@ class TagsTab(BaseTab):
             rows.append(
                 create_dashboard_row(
                     label="Legacy",
-                    value=tag.name,  # type: ignore
+                    value=parse_emoji(tag.name),  # type: ignore
                     icon="LEGACY",
                     element_id="legacy-tags-row",
                 ),
             )
-
-        return create_info_panel(
-            *rows,
-            title="Tags by Ownership",
-            title_icon="USER",
-            element_id="ownership-tags-panel",
-        )
+        if len(rows) > 0:
+            return create_info_panel(
+                *rows,
+                title="Tags by Ownership",
+                title_icon="USER",
+                element_id="ownership-tags-panel",
+            )
+        return None
 
     def _create_tags_hierarchy_panel(self) -> Panel:
         """Create tags hierarchy panel."""
@@ -258,12 +259,12 @@ class TagsTab(BaseTab):
 
         for tag in base_tags:
             count = self.tags_count.get(tag.id, 0)  # ← corregí: get por id
-            name = f"({count}) {tag.name}"
+            name = f"({count}) {parse_emoji(tag.name)}"
             free_tags_node.add_leaf(name, data=tag)
 
         for tag in personal_tags:
             count = self.tags_count.get(tag.id, 0)  # ← corregí: get por id
-            name = f"({count}) {tag.name}"
+            name = f"({count}) {parse_emoji(tag.name)}"
             ownership_node.add_leaf(name, data=tag)
 
         # ── Attribute Categories ─────────────────────────────────────────────
@@ -292,7 +293,7 @@ class TagsTab(BaseTab):
                 tags_list = sort_tags(getattr(self.tags_collection, category))
                 for tag in tags_list:
                     count = self.tags_count.get(tag.id, 0)  # ← corregí: get por id
-                    name = f"({count}) {tag.name}"
+                    name = f"({count}) {parse_emoji(tag.name)}"
                     category_node.add_leaf(name, data=tag)
 
     # ─── Data Handling ─────────────────────────────────────────────────────────────
@@ -327,6 +328,7 @@ class TagsTab(BaseTab):
         if self.multiselect:
             self.multiselect = False
             self.notify("Multiselect disabled")
+
         else:
             self.multiselect = True
             self.notify("Multiselect enabled")
@@ -398,15 +400,28 @@ class TagsTab(BaseTab):
     @work
     async def _delete_tag_workflow(self) -> None:
         """Handle tag deletion workflow."""
-        tag = self._get_selected_tag()
-        if not tag:
-            self.notify("No tag selected to delete.", severity="warning")
-            return
+        tree = self.query_one("#tags-tree", Tree)  # Obtener el tree por ID
 
-        delete_screen = create_tag_delete_modal(tag_name=tag.get("name", ""))
-        confirmed = await self.app.push_screen(delete_screen, wait_for_dismiss=True)
-        if confirmed:
-            await self._delete_tag_via_api(tag)
+        current_node = tree.cursor_node
+        if current_node and current_node.data:
+            if self.multiselect is False:
+                delete_screen = create_tag_delete_modal(tag=current_node.data)
+                confirmed = await self.app.push_screen(
+                    delete_screen,
+                    wait_for_dismiss=True,
+                )
+                if confirmed:
+                    await self._delete_tag_via_api(current_node.data)
+            else:
+                for tag in self.tags_selected:
+                    delete_screen = create_tag_delete_modal(tag=tag)
+                    confirmed = await self.app.push_screen(
+                        delete_screen,
+                        wait_for_dismiss=True,
+                    )
+                    if confirmed:
+                        await self._delete_tag_via_api(tag)
+                self.tags_selected.clear()
 
     async def _create_tag_via_api(self, changes: dict) -> None:
         """Create tag via API call."""
@@ -479,28 +494,19 @@ class TagsTab(BaseTab):
                 severity="error",
             )
 
-    async def _delete_tag_via_api(self, tag: dict) -> None:
+    async def _delete_tag_via_api(self, tag: TagComplex) -> None:
         """Delete tag via API call."""
         try:
             log.info(f"{icons.RELOAD} Deleting tag via API...")
-            tag_id = tag.get("id", "")
-            tag_name = tag.get("name", "Unknown")
-
-            if tag_id:
-                operations = [{"type": "delete_tag", "data": {"id": tag_id}}]
-                await self.execute_operation(
-                    operations,
-                    f"Delete tag '{tag_name}'",
-                    sync_after="tags",
-                )
-
-                self.refresh_data()
-                self.notify(
-                    f"{icons.CHECK} Tag '{tag_name}' deleted successfully!",
-                    title="Tag Deleted",
-                    severity="information",
-                )
-                log.info(f"{icons.CHECK} Tag deleted.")
+            self.tags_collection.remove_tag(tag.id)
+            self.mutate_reactive(TagsTab.tags_collection)
+            await self.client.delete_existing_tag(tag_id=tag.id)
+            self.notify(
+                f"{icons.CHECK} Tag '{tag.name}' deleted successfully!",
+                title="Tag Deleted",
+                severity="information",
+            )
+            log.info(f"{icons.CHECK} Tag deleted.")
         except Exception as e:
             log.error(f"{icons.ERROR} Error deleting tag: {e}")
             self.notify(
@@ -517,6 +523,26 @@ class TagsTab(BaseTab):
         return payload
 
     # ─── Event Handlers ────────────────────────────────────────────────────────────
+    def action_selected(self) -> None:
+        tree = self.query_one("#tags-tree", Tree)  # Obtener el tree por ID
+
+        current_node = tree.cursor_node
+        if current_node and current_node.data:
+            if self.multiselect:
+                current_label = str(current_node.label)
+
+                if current_label.startswith("✓ "):
+                    # Deseleccionar
+                    current_node.set_label(current_label[2:])
+                    if current_node.data in self.tags_selected:
+                        self.tags_selected.remove(current_node.data)
+                else:
+                    # Seleccionar
+                    current_node.set_label(f"✓ {current_label}")
+                    self.tags_selected.append(current_node.data)
+
+                log.info(f"Selected tags: {self.tags_selected}")
+            log.info(f"Selected tag: {current_node.data.name}")
 
     def on_tree_node_selected(self, event: Tree.NodeSelected) -> None:
         """Handle tag selection from tree."""
@@ -548,3 +574,22 @@ class TagsTab(BaseTab):
 
     def action_sort_original(self):
         self.current_sort_index = self.sort_modes.index("")
+
+    def action_clear_selection(self) -> None:
+        """Smart clear: clear selections first, then disable multiselect."""
+        if self.tags_selected:
+            # Si hay selecciones, limpiarlas primero
+            tree = self.query_one("#tags-tree", Tree)
+            for node in tree.root.walk():
+                if node.data and str(node.label).startswith("✓ "):
+                    node.set_label(str(node.label)[2:])
+
+            self.tags_selected.clear()
+            log.info("Selections cleared")
+            self.notify("Selection cleared")
+
+        elif self.multiselect:
+            # Si no hay selecciones pero multiselect está activo, desactivarlo
+            self.multiselect = False
+            log.info("Multiselect disabled")
+            self.notify("Multiselect disabled")

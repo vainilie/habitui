@@ -8,6 +8,7 @@ from .dashboard_panels import (
     HorizontalRow,
     MarkdownWidget,
     FlexibleContainer,
+    create_info_panel,
     create_dashboard_row,
     create_markdown_section,
 )
@@ -25,5 +26,6 @@ __all__ = [
     "MarkdownWidget",
     "Panel",
     "create_dashboard_row",
+    "create_info_panel",
     "create_markdown_section",
 ]

@@ -46,7 +46,7 @@ def save_json(
     try:
         output_path.parent.mkdir(parents=True, exist_ok=True)
         with output_path.open("w", encoding="utf-8") as f:
-            json.dump(data, f, indent=indent, ensure_ascii=True, default=str)
+            json.dump(data, f, indent=indent, ensure_ascii=False, default=str)
     except (TypeError, OSError) as e:
         log.error("Failed to save JSON to '{}'. Error: {}", output_path, e)
         return False

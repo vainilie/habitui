@@ -10,6 +10,16 @@ from .console import (
     switch_icons,
     switch_theme,
 )
+from .emoji_parser import parse_emoji_text_optimized as parse_emoji
 
 
-__all__ = ["bell", "clear", "console", "icons", "print", "switch_icons", "switch_theme"]
+__all__ = [
+    "bell",
+    "clear",
+    "console",
+    "icons",
+    "parse_emoji",
+    "print",
+    "switch_icons",
+    "switch_theme",
+]

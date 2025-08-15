@@ -270,6 +270,7 @@ class QueuedAPIHandler:
     def queue_multiple_tag_creates(self, tag_names: list[str]) -> None:
         """Queue the creation of multiple new tags."""
         for name in tag_names:
+            # Usar getattr para ser consistente con queue_operation
             coroutine = self.client.create_new_tag(tag_name=name)
             self.operations_queue.append(("create_new_tag", coroutine))
             self.app.logger.info(f"{icons.CREATE} Queued: create_new_tag {name}")
@@ -278,6 +279,7 @@ class QueuedAPIHandler:
     def queue_multiple_tag_deletes(self, tag_ids: list[str]) -> None:
         """Queue the deletion of multiple existing tags."""
         for tag_id in tag_ids:
+            # Usar getattr para ser consistente con queue_operation
             coroutine = self.client.delete_existing_tag(tag_id=tag_id)
             self.operations_queue.append(("delete_existing_tag", coroutine))
             self.app.logger.info(f"{icons.CREATE} Queued: delete_existing_tag {tag_id}")
@@ -286,9 +288,10 @@ class QueuedAPIHandler:
     def queue_add_multiple_tags_to_task(self, task_id: str, tag_ids: list[str]) -> None:
         """Queue adding multiple tags to a single task."""
         for tag_id in tag_ids:
+            # Este también necesita corrección
             coroutine = self.client.add_tag_to_task(
                 task_id=task_id,
-                tag_id_to_add=tag_id,
+                tag_id_to_add=tag_id,  # Nota: inconsistencia en el parámetro
             )
             self.operations_queue.append(("add_tag_to_task", coroutine))
             self.app.logger.info(
