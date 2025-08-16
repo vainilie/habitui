@@ -5,12 +5,14 @@ from typing import TYPE_CHECKING
 
 from textual.screen import Screen
 from textual.binding import Binding
-from textual.widgets import Footer, Header, TabPane, TabbedContent
+from textual.widgets import Label, Footer, Header, TabPane, TabbedContent
+from textual.reactive import reactive
 from textual.containers import Vertical, Horizontal
 
 from habitui.tui.main import TextualLogConsole
 
 from .tag_tab import TagsTab
+from .party_tab import PartyTab
 from .profile_tab import ProfileTab
 
 
@@ -30,17 +32,20 @@ class MainScreen(Screen):
         Binding("ctrl+l", "toggle_log", "Toggle Log"),
         Binding("?", "show_help", "Help"),
     ]
+    pending_op: reactive[int] = reactive(0, recompose=True)
 
     def __init__(self) -> None:
         super().__init__()
         self.app: HabiTUI
         self.show_sidebar: bool = False
         self.loaded_tabs = set()
+        self.pending_op = self.app.habitica_api.pending
 
     def compose(self) -> ComposeResult:
         """Composes the main layout of the screen."""
         yield Header(show_clock=True)
-        yield self.app.habitica_api.progress_widget
+
+        yield Label(f"APi pending {self.pending_op}")
         with Horizontal(id="content-area"):
             with (
                 Vertical(id="main-container"),
@@ -49,7 +54,7 @@ class MainScreen(Screen):
                 with TabPane("Profile", id="profile"):
                     yield ProfileTab()
                 with TabPane("Party", id="party"):
-                    pass
+                    yield PartyTab()
                 with TabPane("Tags", id="tags"):
                     yield TagsTab()
                 with TabPane("Inbox", id="inbox"):

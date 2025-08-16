@@ -22,7 +22,9 @@ from habitui.tui.generic import (
 from habitui.custom_logger import log
 from habitui.tui.modals.tags_modal import (
     create_tag_edit_modal,
+    create_tag_create_modal,
     create_tag_delete_modal,
+    create_batch_tag_delete_modal,
 )
 
 
@@ -304,10 +306,11 @@ class TagsTab(BaseTab):
         try:
             await self.vault.update_tags_only("smart", False, True)
             self.tags_collection = self.vault.tags
-            self.mutate_reactive(TagsTab.tags_collection)
             await self.vault.update_tasks_only("smart", False, True)
             self.tags_count = self.vault.tasks.get_tag_count()  # type: ignore
+
             self.mutate_reactive(TagsTab.tags_count)
+            self.mutate_reactive(TagsTab.tags_collection)
 
             self.notify(
                 f"{icons.CHECK} Tags data refreshed successfully!",
@@ -352,7 +355,7 @@ class TagsTab(BaseTab):
     @work
     async def _add_tag_workflow(self) -> None:
         """Handle tag creation workflow."""
-        edit_screen = create_tag_edit_modal()
+        edit_screen = create_tag_create_modal()
         changes = await self.app.push_screen(edit_screen, wait_for_dismiss=True)
         if changes:
             confirm_screen = GenericConfirmModal(
@@ -372,36 +375,34 @@ class TagsTab(BaseTab):
     @work
     async def _edit_tag_workflow(self) -> None:
         """Handle tag editing workflow."""
-        tag = self._get_selected_tag()
-        if not tag:
-            self.notify("No tag selected to edit.", severity="warning")
-            return
+        tree = self.query_one("#tags-tree", Tree)
+        current_node = tree.cursor_node
+        if current_node and current_node.data and self.multiselect is False:
+            edit_screen = create_tag_edit_modal(tag=current_node.data)
 
-        edit_screen = create_tag_edit_modal(
-            name=tag.get("name", ""),
-            tag_id=tag.get("id", ""),
-        )
-        changes = await self.app.push_screen(edit_screen, wait_for_dismiss=True)
-        if changes:
-            confirm_screen = GenericConfirmModal(
-                question="The following changes will be sent to Habitica:",
-                changes=changes,
-                changes_formatter=HabiticaChangesFormatter.format_changes,
-                title="Confirm Tag Changes",
-                icon=icons.QUESTION_CIRCLE,
-            )
-            confirmed = await self.app.push_screen(
-                confirm_screen,
-                wait_for_dismiss=True,
-            )
-            if confirmed:
-                await self._update_tag_via_api(changes, tag.get("id", ""))
+            changes = await self.app.push_screen(edit_screen, wait_for_dismiss=True)
+            if changes:
+                confirm_screen = GenericConfirmModal(
+                    question="The following changes will be sent to Habitica:",
+                    changes=changes,
+                    changes_formatter=HabiticaChangesFormatter.format_changes,
+                    title="Confirm Tag Changes",
+                    icon=icons.QUESTION_CIRCLE,
+                )
+                confirmed = await self.app.push_screen(
+                    confirm_screen,
+                    wait_for_dismiss=True,
+                )
+                if confirmed:
+                    await self._update_tag_via_api(
+                        changes,
+                        current_node.data.id,
+                    )
 
     @work
     async def _delete_tag_workflow(self) -> None:
         """Handle tag deletion workflow."""
-        tree = self.query_one("#tags-tree", Tree)  # Obtener el tree por ID
-
+        tree = self.query_one("#tags-tree", Tree)
         current_node = tree.cursor_node
         if current_node and current_node.data:
             if self.multiselect is False:
@@ -412,14 +413,17 @@ class TagsTab(BaseTab):
                 )
                 if confirmed:
                     await self._delete_tag_via_api(current_node.data)
-            else:
-                for tag in self.tags_selected:
-                    delete_screen = create_tag_delete_modal(tag=tag)
-                    confirmed = await self.app.push_screen(
-                        delete_screen,
-                        wait_for_dismiss=True,
-                    )
-                    if confirmed:
+            elif len(self.tags_selected) > 0:
+                delete_screen = create_batch_tag_delete_modal(
+                    tag_list=self.tags_selected,
+                    tag_uses=self.tags_count,
+                )
+                confirmed = await self.app.push_screen(
+                    delete_screen,
+                    wait_for_dismiss=True,
+                )
+                if confirmed:
+                    for tag in self.tags_selected:
                         await self._delete_tag_via_api(tag)
                 self.tags_selected.clear()
 
@@ -430,13 +434,7 @@ class TagsTab(BaseTab):
             payload = self._build_tag_payload(changes)
 
             if payload:
-                operations = [{"type": "create_tag", "data": payload}]
-                await self.execute_operation(
-                    operations,
-                    "Create tag",
-                    sync_after="tags",
-                )
-
+                self.app.habitica_api.create_new_tag(tag_name=payload["name"])
                 self.refresh_data()
                 self.notify(
                     f"{icons.CHECK} Tag created successfully!",
@@ -466,14 +464,16 @@ class TagsTab(BaseTab):
             payload["id"] = tag_id
 
             if payload:
-                operations = [{"type": "update_tag", "data": payload}]
-                await self.execute_operation(
-                    operations,
-                    "Update tag",
-                    sync_after="tags",
+                self.app.habitica_api.update_existing_tag(
+                    tag_id=payload["id"],
+                    new_tag_name=payload["name"],
                 )
+                self.tags_collection.update_tag(
+                    tag_id=payload["id"],
+                    update_data={"name": payload["name"]},
+                )
+                self.mutate_reactive(TagsTab.tags_collection)
 
-                self.refresh_data()
                 self.notify(
                     f"{icons.CHECK} Tag updated successfully!",
                     title="Tag Updated",
@@ -530,15 +530,13 @@ class TagsTab(BaseTab):
         if current_node and current_node.data:
             if self.multiselect:
                 current_label = str(current_node.label)
-
-                if current_label.startswith("✓ "):
-                    # Deseleccionar
-                    current_node.set_label(current_label[2:])
-                    if current_node.data in self.tags_selected:
-                        self.tags_selected.remove(current_node.data)
+                if current_node.data in self.tags_selected:
+                    current_node.set_label(
+                        f"({self.tags_count.get(current_node.data.id)}) {current_node.data.name}",
+                    )
+                    self.tags_selected.remove(current_node.data)
                 else:
-                    # Seleccionar
-                    current_node.set_label(f"✓ {current_label}")
+                    current_node.set_label(f"[on $accent]✓ {current_label}[/]")
                     self.tags_selected.append(current_node.data)
 
                 log.info(f"Selected tags: {self.tags_selected}")
@@ -546,20 +544,20 @@ class TagsTab(BaseTab):
 
     def on_tree_node_selected(self, event: Tree.NodeSelected) -> None:
         """Handle tag selection from tree."""
-        if event.node.data:
+        color = self.app.theme_variables.get("block-cursor-background", "primary")
+        current_node = event.node
+        if current_node and current_node.data:
             if self.multiselect:
                 current_label = str(event.node.label)
-
-                if current_label.startswith("✓ "):
-                    # Deseleccionar
-                    event.node.set_label(current_label[2:])
-                    # Remover de la lista
-                    if event.node.data in self.tags_selected:
-                        self.tags_selected.remove(event.node.data)
+                if current_node.data in self.tags_selected:
+                    event.node.set_label(
+                        f"({self.tags_count.get(current_node.data.id)}) {current_node.data.name}",
+                    )
+                    self.tags_selected.remove(event.node.data)
                 else:
-                    # Seleccionar
-                    event.node.set_label(f"✓ {current_label}")
+                    event.node.set_label(f"[b {color}]✓ {current_label}[/]")
                     self.tags_selected.append(event.node.data)
+
                 log.info(f"Selected tags: {self.tags_selected}")
             log.info(f"Selected tag: {event.node.data.name}")
 
@@ -578,18 +576,16 @@ class TagsTab(BaseTab):
     def action_clear_selection(self) -> None:
         """Smart clear: clear selections first, then disable multiselect."""
         if self.tags_selected:
-            # Si hay selecciones, limpiarlas primero
             tree = self.query_one("#tags-tree", Tree)
-            for node in tree.root.walk():
-                if node.data and str(node.label).startswith("✓ "):
-                    node.set_label(str(node.label)[2:])
-
+            tree.refresh()
             self.tags_selected.clear()
             log.info("Selections cleared")
             self.notify("Selection cleared")
 
         elif self.multiselect:
-            # Si no hay selecciones pero multiselect está activo, desactivarlo
             self.multiselect = False
             log.info("Multiselect disabled")
             self.notify("Multiselect disabled")
+
+    def action_refresh_data(self):
+        self.refresh_data()

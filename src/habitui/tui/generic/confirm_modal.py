@@ -116,7 +116,8 @@ class GenericConfirmModal(ModalScreen):
                                 yield Label(f"• {label}:", classes="changes-label")
                                 yield Label(value, classes="changes-value")
 
-                yield from self.custom_content
+                for x in self.custom_content:
+                    yield Label(x)
 
                 with Horizontal(classes="modal-buttons"):
                     yield Button(

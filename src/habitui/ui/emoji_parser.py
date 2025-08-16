@@ -758,7 +758,7 @@ def parse_emoji_text_optimized(text: str) -> str:
 
     def replace_emoji(match: re.Match) -> str:
         """Return the simple emoji from the mapping."""
-        return EMOJI_MAPPING.get(match.group(0), match.group(0))
+        return EMOJI_MAPPING.get(match.group(0), match.group(0))  # type: ignore
 
     # Create a regex pattern from all compound emoji keys
     pattern = "|".join(re.escape(emoji) for emoji in EMOJI_MAPPING)

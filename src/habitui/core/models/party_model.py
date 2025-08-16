@@ -183,3 +183,32 @@ class PartyCollection(HabiTuiBaseModel):
         :returns: A list of `PartyChat` messages, or None.
         """
         return [msg for msg in self.party_chat if not msg.by_system]
+
+    def get_display_data(self) -> dict[str, Any]:
+        data = {
+            "display_name": self.party_info.name or "Unknown Party",
+            "description": self.party_info.description or "",
+            "summary": self.party_info.summary or "",
+            "member_count": self.party_info.member_count or 0,
+            "leader_name": self.party_info.leader_name or "",
+            "leader_username": self.party_info.leader_username or "",
+            "leader_id": self.party_info.leader_id or "",
+            "has_quest": self.party_info.has_quest,
+        }
+
+        if self.party_info.has_quest:
+            members = sum(self.party_info.quest_members.values())
+            data.update({
+                "quest_key": self.party_info.quest_key or "",
+                "quest_active": self.party_info.quest_active or False,
+                "quest_leader": self.party_info.quest_leader or "",
+                "quest_members": members or 0,
+                "quest_collect": self.party_info.quest_collect or None,
+                "quest_collected_items": self.party_info.quest_collected_items or None,
+                "quest_hp": self.party_info.quest_hp or 0,
+                "quest_rage": self.party_info.quest_rage or 0,
+                "quest_up": self.party_info.quest_up or 0,
+                "quest_down": self.party_info.quest_down or 0,
+            })
+
+        return data

@@ -1,6 +1,8 @@
 # ♥♥─── Main App ─────────────────────────────────────────────────────────────────
 from __future__ import annotations
 
+from typing import cast
+
 from textual.app import App, ComposeResult
 from textual.screen import Screen
 from textual.binding import Binding
@@ -9,10 +11,12 @@ from textual.containers import Vertical
 
 from art import text2art
 
+from habitui.core.client import HabiticaClient
 from habitui.core.services import DataVault
 from habitui.custom_logger import get_logger
+from habitui.tui.main.api_handler import HabiticaBatcher
 
-from .main import LoggingMixin, QueuedAPIHandler, TextualLogConsole, TextualThemeManager
+from .main import LoggingMixin, TextualLogConsole, TextualThemeManager
 from .screens import MainScreen
 
 
@@ -48,7 +52,10 @@ class HabiTUI(App):
         super().__init__()
         self.logger = get_logger()
         self.theme_manager: TextualThemeManager = TextualThemeManager(self)
-        self.habitica_api: QueuedAPIHandler = QueuedAPIHandler(self)
+        self.habitica_api = cast(
+            "HabiticaBatcher[HabiticaClient] | HabiticaClient",
+            HabiticaBatcher(HabiticaClient()),
+        )
         self.vault: DataVault | None = None
         self.logging = LoggingMixin()
 
@@ -59,29 +66,16 @@ class HabiTUI(App):
 
     async def on_ready(self) -> None:
         try:
-            self.logger.info("=== ON_READY START ===")
-            self.logger.info(f"Screens already exist: {hasattr(self, '_screen_stack')}")
-            if hasattr(self, "_screen_stack"):
-                self.logger.info(
-                    f"Screen stack: {[str(s) for s in self._screen_stack]}"
-                )
-
             self.logger.info("Starting vault load...")
             self.vault = DataVault()
-            self.logger.info("=== VAULT CREATED ===")
 
             await self.vault.get_data(force=False, debug=True, mode="smart")
-            self.logger.info(
-                f"=== VAULT LOADED - Tags loaded: {self.vault.tags is not None} ===",
-            )
 
             self.logger.info("Vault loaded successfully.")
             self.logger.info("Transitioning to MainScreen...")
 
-            self.logger.info("=== ABOUT TO POP/PUSH ===")
             self.pop_screen()
             self.push_screen("main")
-            self.logger.info("=== FINISHED ON_READY ===")
         except Exception as e:
             self.logger.info(f"ERROR in on_ready: {e}")
             msg = f"Error during data loading: {e}"
