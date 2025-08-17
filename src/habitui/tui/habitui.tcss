@@ -132,7 +132,7 @@
 
 /* ─── Dashboard ──────────────────────────────────────────────────────────── */
 
-    ProfileTab,TagsTab {
+    ProfileTab,TagsTab,PartyTab {
         height:     auto;
 
     }
@@ -292,3 +292,24 @@ SimpleProgressWidget.hidden {
     display: none;
 }
 
+#party-overview-panel {
+    height:auto
+}
+#available-spells-panel{
+    height:auto
+}
+#spell-list-container{
+    height:auto;
+    border: hidden;
+}
+
+#spells-display-area{
+    height:auto
+}
+
+.spell-slot,
+.user-message{
+    border:solid;
+}
+
+#main_list{height:50%}

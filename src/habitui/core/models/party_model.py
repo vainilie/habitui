@@ -171,11 +171,11 @@ class PartyCollection(HabiTuiBaseModel):
         """
         system_messages = []
         for msg in self.party_chat:
-            if msg.by_system:
+            if msg.by_system is True:
                 system_messages.append(msg)
                 if from_quest_start and msg.info_type == "quest_start":
                     break
-        return self.party_chat
+        return system_messages
 
     def get_user_messages(self) -> list[PartyChat]:
         """Return the list of party chat messages.

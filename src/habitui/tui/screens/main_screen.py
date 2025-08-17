@@ -12,6 +12,7 @@ from textual.containers import Vertical, Horizontal
 from habitui.tui.main import TextualLogConsole
 
 from .tag_tab import TagsTab
+from .inbox_tab import InboxTab
 from .party_tab import PartyTab
 from .profile_tab import ProfileTab
 
@@ -58,7 +59,7 @@ class MainScreen(Screen):
                 with TabPane("Tags", id="tags"):
                     yield TagsTab()
                 with TabPane("Inbox", id="inbox"):
-                    pass
+                    yield InboxTab()
                 with TabPane("Challenges", id="challenges"):
                     pass
                 with TabPane("Config", id="config"):

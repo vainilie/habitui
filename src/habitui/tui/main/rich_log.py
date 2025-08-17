@@ -47,7 +47,6 @@ class TextualSink:
         # time_str = record["time"].strftime("%H:%M:%S")
         level_name = record["level"].name
         message_text = record["message"]
-        message_text = message_text.replace(":", "\n\t")
         level_config = LEVEL_CONFIG.get(level_name, {"icon": "•", "color": "#908caa"})
         icon = level_config.get("icon", "•")
         level_color = level_config.get("color", "#908caa")

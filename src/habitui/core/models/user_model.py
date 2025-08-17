@@ -12,6 +12,7 @@ from sqlmodel import Field, Column
 
 from habitui.ui import icons
 from habitui.utils import DateTimeHandler
+from habitui.custom_logger import log
 
 from .tag_model import TagComplex
 from .base_model import HabiTuiSQLModel, HabiTuiBaseModel
@@ -601,9 +602,14 @@ class UserCollection(HabiTuiBaseModel):
     ) -> QuestItem | None:
         """Get current quest data from game content."""
         if self.user_state.current_quest_key:
+            log.info(
+                content_vault.get_quest(
+                    key=decamelize(self.user_state.current_quest_key),
+                ),
+            )
             return content_vault.get_quest(
-                key=self.user_state.current_quest_key,
-            )  # o como accedas
+                key=decamelize(self.user_state.current_quest_key),
+            )
         return None
 
     def available_spells(
@@ -674,6 +680,7 @@ class UserCollection(HabiTuiBaseModel):
                 sender_name = msg.user if not msg.by_me else None
                 sender_username = msg.username if not msg.by_me else None
                 senders[sender] = {
+                    "uuid": msg.uuid,
                     "sender_name": sender_name,
                     "sender_username": sender_username,
                     "last_time": msg.timestamp,
@@ -764,4 +771,5 @@ class UserCollection(HabiTuiBaseModel):
             "quest_completed": False
             if not current_quest_key
             else self.user_state.current_quest_completed,
+            "rsvp": self.notifications.current_quest_rsvp_needed,
         }

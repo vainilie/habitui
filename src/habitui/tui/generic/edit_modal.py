@@ -10,7 +10,17 @@ from collections.abc import Callable
 from textual import on
 from textual.screen import ModalScreen
 from textual.binding import Binding
-from textual.widgets import Input, Label, Button, Select, Static, Switch, TextArea
+from textual.widgets import (
+    Input,
+    Label,
+    Button,
+    Select,
+    Static,
+    Switch,
+    ListItem,
+    ListView,
+    TextArea,
+)
 from textual.containers import Vertical, Container, Horizontal
 
 from habitui.ui import icons
@@ -35,6 +45,7 @@ class FieldType(Enum):
     SELECT = "select"
     SWITCH = "switch"
     STATIC = "static"
+    OPTION_LIST = "option_list"
 
 
 # ─── Data Classes ──────────────────────────────────────────────────────────────
@@ -50,6 +61,8 @@ class FormField:
     :param default_value: Default value for the field.
     :param placeholder: Placeholder text for input fields.
     :param options: List of (value, label) tuples for select fields.
+    :param option_items: List of objects with display properties for option_list fields.
+    :param option_formatter: Function to format option_list items (obj) -> (title, subtitle, description).
     :param classes: CSS classes to apply to the widget.
     :param required: True if the field is mandatory.
     :param validation: Optional custom validation function.
@@ -65,6 +78,8 @@ class FormField:
     default_value: Any = ""
     placeholder: str = ""
     options: list[tuple[Any, str]] | None = None
+    option_items: list[Any] | None = None
+    option_formatter: Callable[[Any], tuple[str, str, str]] | None = None
     classes: str = ""
     required: bool = False
     validation: Callable[[Any], tuple[bool, str]] | None = None
@@ -120,6 +135,7 @@ class GenericEditModal(ModalScreen):
         self.icon = icon
         self.track_changes = track_changes
         self.auto_focus = auto_focus
+        self._selected_option = None
 
     def compose(self) -> ComposeResult:  # noqa: C901
         """Compose the child widgets for the modal screen."""
@@ -194,6 +210,41 @@ class GenericEditModal(ModalScreen):
                         )
                         yield select_widget
 
+                    elif (
+                        field.field_type == FieldType.OPTION_LIST and field.option_items
+                    ):
+                        # Create option list with selectable items
+                        option_list = ListView(
+                            classes=f"option-list {field.classes}",
+                        )
+
+                        with option_list:
+                            for item in field.option_items:
+                                if field.option_formatter:
+                                    title, subtitle, description = (
+                                        field.option_formatter(item)
+                                    )
+                                    list_item = ListItem(
+                                        Label(
+                                            description,
+                                            classes="option-description",
+                                        ),
+                                        classes="option-item",
+                                    )
+                                    list_item.border_title = title
+                                    list_item.border_subtitle = subtitle
+                                else:
+                                    list_item = ListItem(
+                                        Label(str(item), classes="option-description"),
+                                        classes="option-item",
+                                    )
+
+                                # Store the original item data
+                                list_item.data_item = item
+                                yield list_item
+
+                        yield option_list
+
                     elif field.field_type == FieldType.SWITCH:
                         yield Switch(
                             value=bool(original_value),
@@ -224,6 +275,13 @@ class GenericEditModal(ModalScreen):
                 widget.focus()
             except Exception as e:
                 log.exception(e)
+
+    @on(ListView.Highlighted)
+    def option_selected(self, event: ListView.Highlighted) -> None:
+        """Handle option list selection."""
+        if event.list_view.classes and "option-list" in event.list_view.classes:
+            if event.item and hasattr(event.item, "data_item"):
+                self._selected_option = event.item.data_item
 
     def _validate_field(self, field: FormField, value: Any) -> tuple[bool, str]:
         """Validate a single field value.
@@ -278,6 +336,9 @@ class GenericEditModal(ModalScreen):
                 elif field.field_type == FieldType.SELECT:
                     widget = self.query_one(f"#{field.id}", Select)
                     value = widget.value
+                elif field.field_type == FieldType.OPTION_LIST:
+                    # For option list, return the selected item or None
+                    value = self._selected_option
                 else:  # Input types
                     widget = self.query_one(f"#{field.id}", Input)
                     value = widget.value
@@ -400,6 +461,52 @@ def create_profile_edit_modal(
         original_data=original_data,
         icon=icons.USER,
         auto_focus="name",
+    )
+
+
+def create_spell_selection_modal(
+    available_spells: list[Any],
+    user_mp: int,
+) -> GenericEditModal:
+    """Create a modal for selecting spells to cast.
+
+    :param available_spells: List of available spell objects.
+    :param user_mp: Current user MP for display.
+    :returns: An instance of `GenericEditModal` configured for spell selection.
+    """
+
+    def spell_formatter(spell) -> tuple[str, str, str]:
+        """Format spell for display in option list."""
+        title = f"{icons.WAND} {spell.text}"
+        subtitle = f"{icons.MANA} {spell.mana} MP {icons.TARGET} {spell.target}"
+        description = spell.notes or "No description available"
+        return title, subtitle, description
+
+    fields = [
+        FormField(
+            id="spell",
+            label="Select a spell to cast:",
+            field_type=FieldType.OPTION_LIST,
+            option_items=available_spells,
+            option_formatter=spell_formatter,
+            classes="spell-selection",
+            required=True,
+        ),
+        FormField(
+            id="current_mp_info",
+            label=f"{icons.MANA} Current MP: {user_mp}",
+            field_type=FieldType.STATIC,
+            classes="mp-info",
+        ),
+    ]
+
+    return GenericEditModal(
+        title="Cast Spell",
+        fields=fields,
+        icon=icons.WAND,
+        track_changes=False,
+        save_text="Cast",
+        cancel_text="Cancel",
     )
 
 
