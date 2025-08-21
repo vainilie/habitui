@@ -615,6 +615,12 @@ class TaskCollection(HabiTuiBaseModel):
             daily for daily in self.dailys if daily.due_today and not daily.completed
         ]
 
+    def get_owned_tasks(self) -> list[AnyTask]:
+        return [task for task in self.all_tasks if task.challenge is False]
+
+    def get_challenge_tasks(self) -> list[AnyTask]:
+        return [task for task in self.all_tasks if task.challenge is True]
+
     def delete_multiple_tasks(self, task_ids: list[str]) -> list[AnyTask]:
         """Delete multiple tasks at once.
 

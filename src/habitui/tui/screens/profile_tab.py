@@ -66,6 +66,7 @@ class ProfileTab(BaseTab):
                 yield self._create_character_stats_panel()
             with Horizontal(classes="dashboard-panel-row"):
                 yield self._create_achievements_panel()
+                yield self._create_statistics_stats()
 
             yield self._create_biography_section()
 
@@ -234,7 +235,7 @@ class ProfileTab(BaseTab):
                 value=self.user_collection.account_created,
                 element_id="account-creation-date-row",
             ),
-        )  # type: ignore
+        )
         achievement_rows = [
             create_dashboard_row(
                 label="Check-ins",
@@ -268,6 +269,128 @@ class ProfileTab(BaseTab):
             title="Achievements",
             title_icon="STARRY",
             element_id="user-achievements-panel",
+        )
+
+    def _create_statistics_stats(self) -> Panel:
+        """Create the statistics panel with tasks and challenges sections."""
+        tasks_rows = [
+            create_dashboard_row(
+                icon="TASK",
+                label="Total tasks",
+                value=len(self.vault.tasks.all_tasks),
+                element_id="total-tasks-row",
+            ),
+            create_dashboard_row(
+                icon="TODO",
+                label="Todos",
+                value=len(self.vault.tasks.todos),
+                element_id="total-todos-row",
+            ),
+            create_dashboard_row(
+                icon="HABIT",
+                label="Habits",
+                value=len(self.vault.tasks.habits),
+                element_id="total-habits-row",
+            ),
+            create_dashboard_row(
+                icon="REWARD",
+                label="Rewards",
+                value=len(self.vault.tasks.rewards),
+                element_id="total-rewards-row",
+            ),
+            create_dashboard_row(
+                icon="DAILY",
+                label="Dailies",
+                value=len(self.vault.tasks.dailys),
+                element_id="total-dailies-row",
+            ),
+            create_dashboard_row(
+                icon="TODAY",
+                label="Due Dailies",
+                value=len(self.vault.tasks.get_due_dailies()),
+                element_id="today-dailies-row",
+            ),
+            create_dashboard_row(
+                icon="USER",
+                label="User Tasks",
+                value=len(self.vault.tasks.get_owned_tasks()),
+                element_id="owntasks-challenges-row",
+            ),
+        ]
+        today = datetime.now().strftime("%d, %b %Y")  # noqa: DTZ005
+
+        challenges_rows = [
+            create_dashboard_row(
+                value=f"{self.user_collection.display_name}",
+                label=self.user_collection.username,
+                icon="AT",
+                element_id="user-welcome-message",
+            ),
+            create_dashboard_row(
+                value=f"{today}",
+                label="Today",
+                icon="CALENDAR",
+                element_id="current-date-info",
+            ),
+            create_dashboard_row(
+                icon="MEDAL",
+                label="Total Challenges",
+                value=len(self.vault.challenges.get_all_challenges()),
+                element_id="all-challenges-row",
+            ),
+            create_dashboard_row(
+                icon="JOINED",
+                label="Joined",
+                value=len(self.vault.challenges.get_joined_challenges()),
+                element_id="joined-challenges-row",
+            ),
+            create_dashboard_row(
+                icon="OWNED",
+                label="Created",
+                value=len(self.vault.challenges.get_owned_challenges()),
+                element_id="created-challenges-row",
+            ),
+            create_dashboard_row(
+                icon="LEGACY",
+                label="Legacy (guilds)",
+                value=len(self.vault.challenges.get_legacy_challenges()),
+                element_id="legacy-challenges-row",
+            ),
+            create_dashboard_row(
+                icon="KEY",
+                label="Challenge Tasks",
+                value=len(self.vault.tasks.get_challenge_tasks()),
+                element_id="chtasks-challenges-row",
+            ),
+        ]
+
+        # Crear paneles individuales siguiendo la misma estructura que stats
+        tasks_panel = Panel(
+            *tasks_rows,
+            css_classes="dashboard-panel-vertical",
+            element_id="user-tasks-stats",
+        )
+
+        challenges_panel = Panel(
+            *challenges_rows,
+            css_classes="dashboard-panel-vertical",
+            element_id="user-challenges-stats",
+        )
+
+        # Contenedor horizontal como en character stats
+        stats_horizontal = Horizontal(
+            challenges_panel,
+            tasks_panel,
+            classes="dashboard-panel-horizontal",
+            id="user-tasks-and-challenges-stats",
+        )
+
+        # Panel principal
+        return Panel(
+            stats_horizontal,
+            title="Statistics",
+            title_icon="STARRY",
+            element_id="user-statistics-panel",
         )
 
     def _create_biography_section(self) -> Collapsible:

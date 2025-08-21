@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
+from tkinter.messagebox import QUESTION
 
 from textual import work
 from textual.binding import Binding
@@ -49,6 +50,7 @@ class TagsTab(BaseTab):
         Binding("o", "sort_original", "Default Sort"),
         Binding("r", "refresh_data", "Refresh"),
         Binding("s", "toggle_sort", "Toggle Sort"),
+        Binding("t", "tag_tasks_workflow", "Tag Tasks"),
         Binding("u", "sort_use", "Use Sort"),
         Binding("escape", "clear_selection", "Clear Selection"),
     ]
@@ -340,6 +342,10 @@ class TagsTab(BaseTab):
         """Initiate the tag creation workflow."""
         self._add_tag_workflow()
 
+    def action_tag_tasks_workflow(self) -> None:
+        """Initiate the tag creation workflow."""
+        self._tag_tasks_workflow()
+
     def action_edit_tag_workflow(self) -> None:
         """Initiate the tag editing workflow."""
         self._edit_tag_workflow()
@@ -426,6 +432,81 @@ class TagsTab(BaseTab):
                     for tag in self.tags_selected:
                         await self._delete_tag_via_api(tag)
                 self.tags_selected.clear()
+
+    @work
+    async def _tag_tasks_workflow(self) -> None:
+        challenge_tag = self.tags_collection.get_challenge_parent()
+        personal_tag = self.tags_collection.get_personal_parent()
+
+        add_ch_tag = []
+        add_pe_tag = []
+        del_ch_tag = []
+        del_pe_tag = []
+
+        for task in self.vault.tasks.get_challenge_tasks():
+            if task.challenge:
+                if challenge_tag.id not in task.tags:
+                    add_ch_tag.append(task.id)
+                if personal_tag.id in task.tags:
+                    del_pe_tag.append(task.id)
+        for task in self.vault.tasks.get_owned_tasks():
+            if not task.challenge:
+                if challenge_tag.id in task.tags:
+                    del_ch_tag.append(task.id)
+                if personal_tag.id not in task.tags:
+                    add_pe_tag.append(task.id)
+        add_total = len(add_pe_tag) + len(add_ch_tag)
+        del_total = len(del_ch_tag) + len(del_pe_tag)
+        confirm = GenericConfirmModal(
+            question=f"You will tag {add_total} and untag {del_total}. Continue?",
+            title="Batch Tag Tasks",
+            confirm_text="Accept",
+            cancel_text="Cancel",
+            confirm_variant="success",
+            icon=QUESTION,
+        )
+        confirmed = await self.app.push_screen(confirm, wait_for_dismiss=True)
+        if confirmed:
+            changes = {
+                "add": {"challenge": add_ch_tag, "personal": add_pe_tag},
+                "del": {"challenge": del_ch_tag, "personal": del_pe_tag},
+                "ch_tag": challenge_tag.id,
+                "pe_tag": personal_tag.id,
+            }
+            await self._tag_tasks_via_api(changes)
+
+    async def _tag_tasks_via_api(self, changes: dict) -> None:
+        try:
+            log.info(f"{icons.RELOAD} Adding/deleting tags via API...")
+            for task_id in changes["add"]["challenge"]:
+                self.app.habitica_api.add_tag_to_task(
+                    task_id=task_id,
+                    tag_id_to_add=changes["ch_tag"],
+                )
+
+            for task_id in changes["add"]["personal"]:
+                self.app.habitica_api.add_tag_to_task(
+                    task_id=task_id,
+                    tag_id_to_add=changes["pe_tag"],
+                )
+            for task_id in changes["del"]["challenge"]:
+                self.app.habitica_api.remove_tag_from_task(
+                    task_id=task_id,
+                    tag_id_to_remove=changes["ch_tag"],
+                )
+
+            for task_id in changes["del"]["personal"]:
+                self.app.habitica_api.remove_tag_from_task(
+                    task_id=task_id,
+                    tag_id_to_remove=changes["pe_tag"],
+                )
+        except Exception as e:
+            log.error(f"{icons.ERROR} Error adding/deleting tag: {e}")
+            self.notify(
+                f"{icons.ERROR} Failed to add/del tag: {e!s}",
+                title="Error",
+                severity="error",
+            )
 
     async def _create_tag_via_api(self, changes: dict) -> None:
         """Create tag via API call."""

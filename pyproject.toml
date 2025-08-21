@@ -18,8 +18,10 @@ dependencies = [
     "python-box>=7.1.1",
     "python-dateutil",
     "art",
-        "emoji",
-"emoji-data"
+    "emoji",
+    "emoji-data",
+    "textual-tags",
+    "textual-timepiece"
 
 ]
 
@@ -65,12 +67,12 @@ select = ["ALL"]
 ignore = [
     "ANN401",
     "BLE001",
-    "D100", # Missing docstring in public module
-    "D101", # Missing docstring in public class
-    "D102", # Missing docstring in public method (NOTE: often includes __init__)
-    "D103", # Missing docstring in public function
-    "D104", # Missing docstring in public package
-    "D105", # Missing docstring in magic method (e.g., __str__, __repr__)
+    "D100",    # Missing docstring in public module
+    "D101",    # Missing docstring in public class
+    "D102",    # Missing docstring in public method (NOTE: often includes __init__)
+    "D103",    # Missing docstring in public function
+    "D104",    # Missing docstring in public package
+    "D105",    # Missing docstring in magic method (e.g., __str__, __repr__)
     "D107",
     "DOC201",
     "DOC501",
@@ -89,7 +91,7 @@ ignore = [
     "TC003",
     "ANN002",
     "ANN003",
-    "S105"
+    "S105",
 ]
 
 [tool.ruff.lint.per-file-ignores]

@@ -884,3 +884,20 @@ class ChallengeCollection(HabiTuiBaseModel):
         for challenge in self.challenges:
             all_challenges[challenge.id] = challenge
         return all_challenges
+
+    def get_legacy_challenges(self) -> dict[str, ChallengeInfo]:
+        legacy = {}
+        for challenge in self.challenges:
+            if challenge.legacy:
+                legacy[challenge.id] = challenge
+        return legacy
+
+    @property
+    def all_tasks(self) -> list[Any]:
+        """Return a single list containing all primary tasks."""
+        return [
+            *self.challenge_tasks_todo,
+            *self.challenge_tasks_daily,
+            *self.challenge_tasks_habit,
+            *self.challenge_tasks_reward,
+        ]

@@ -15,6 +15,7 @@ from .tag_tab import TagsTab
 from .inbox_tab import InboxTab
 from .party_tab import PartyTab
 from .profile_tab import ProfileTab
+from .challenge_tab import ChallengesTab
 
 
 if TYPE_CHECKING:
@@ -61,7 +62,7 @@ class MainScreen(Screen):
                 with TabPane("Inbox", id="inbox"):
                     yield InboxTab()
                 with TabPane("Challenges", id="challenges"):
-                    pass
+                    yield ChallengesTab()
                 with TabPane("Config", id="config"):
                     pass
                 with TabPane("Tasks", id="tasks"):

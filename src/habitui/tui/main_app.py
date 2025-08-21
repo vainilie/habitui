@@ -69,7 +69,12 @@ class HabiTUI(App):
             self.logger.info("Starting vault load...")
             self.vault = DataVault()
 
-            await self.vault.get_data(force=False, debug=True, mode="smart")
+            await self.vault.get_data(
+                force=False,
+                debug=True,
+                mode="smart",
+                with_challenges=True,
+            )
 
             self.logger.info("Vault loaded successfully.")
             self.logger.info("Transitioning to MainScreen...")
