@@ -94,7 +94,8 @@ class TagFactory:
         """Build mapping dictionaries for tag ID to trait relationships."""
         self.id_to_attr = {}
         self.attr_to_parent = {}
-
+        if self.tag_settings:
+            log.warning("NO HAY TAGSS")
         if self.tag_settings.id_attr_str:
             self.id_to_attr[str(self.tag_settings.id_attr_str)] = "str"
         if self.tag_settings.id_attr_int:
@@ -243,11 +244,6 @@ class TagCollection(HabiTuiBaseModel):
     """Collection for managing multiple tags with hierarchical relationships."""
 
     tags: list[TagComplex] = Field(default_factory=list)
-    factory: TagFactory = Field(default_factory=TagFactory, exclude=True)
-
-    def __init__(self, **data: Any) -> None:
-        super().__init__(**data)
-        self._build_index()
 
     def _build_index(self) -> None:
         """Build internal index for fast lookups."""
@@ -268,7 +264,7 @@ class TagCollection(HabiTuiBaseModel):
                     log.warning("Skipping invalid tag data: {}", raw_data)
                     continue
 
-        return cls(tags=tags, factory=factory)
+        return cls(tags=tags)
 
     # ─── Core CRUD Operations ──────────────────────────────────────────────────
     def add_tag(self, tag: TagComplex) -> None:
