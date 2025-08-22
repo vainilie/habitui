@@ -185,6 +185,16 @@ class ProfileTab(BaseTab):
 
         attribute_rows = [
             create_dashboard_row(
+                label="PARTY DMG",
+                value=self.vault.tasks.get_damage()[0],
+                element_id="partydam-stat-row",
+            ),
+            create_dashboard_row(
+                label="USER DMG",
+                value=self.vault.tasks.get_damage()[1],
+                element_id="userdmg-stat-row",
+            ),
+            create_dashboard_row(
                 label="INT",
                 value=self.user_collection.intelligence,
                 element_id="intelligence-stat-row",

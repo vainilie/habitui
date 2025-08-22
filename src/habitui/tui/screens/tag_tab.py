@@ -462,7 +462,7 @@ class TagsTab(BaseTab):
             confirm_text="Accept",
             cancel_text="Cancel",
             confirm_variant="success",
-            icon=QUESTION,
+            icon=icons.QUESTION,
         )
         confirmed = await self.app.push_screen(confirm, wait_for_dismiss=True)
         if confirmed:

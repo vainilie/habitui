@@ -7,7 +7,7 @@ from rich.table import Table
 
 from textual import on, work
 from textual.app import ComposeResult
-from textual.screen import ModalScreen
+from textual.screen import Screen, ModalScreen
 from textual.binding import Binding
 from textual.message import Message
 from textual.widgets import (
@@ -173,15 +173,15 @@ class LeaveChallengeScreen(ModalScreen):
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         """Handle button press events."""
-        if event.button.id == "confirm":
-            self.dismiss("delete-all")
+        if event.button.id == "delete-tasks":
+            self.dismiss("remove-all")
         elif event.button.id == "keep-tasks":
             self.dismiss("keep-all")
         else:
             self.dismiss(False)
 
 
-class ChallengeDetailScreen(ModalScreen):
+class ChallengeDetailScreen(Screen):
     """Screen for viewing challenge details."""
 
     BINDINGS = [
@@ -274,13 +274,12 @@ class ChallengeDetailScreen(ModalScreen):
             if not confirmed:
                 return
 
-            # API call to join challenge
-            success = self.app.habitica_api.join_challenge(challenge_id)
+            success = await self.app.vault.client.join_challenge(challenge_id)
 
             if success:
                 self.notify(f"{icons.CHECK} Challenge joined!", severity="information")
 
-                self.post_message(ChallengesNeedRefresh())
+                self.app.screen.post_message(ChallengesNeedRefresh())
             else:
                 self.notify(f"{icons.ERROR} Error joining challenge", severity="error")
 
@@ -303,11 +302,11 @@ class ChallengeDetailScreen(ModalScreen):
                 return
 
             # API call to leave challenge
-            success = self.app.habitica_api.leave_challenge(challenge_id, result)
-
+            success = await self.app.vault.client.leave_challenge(challenge_id, result)
+            log.warning("success")
             if success:
                 self.notify(f"{icons.CHECK} Challenge left!", severity="information")
-                self.post_message(ChallengesNeedRefresh())
+                self.app.screen.post_message(ChallengesNeedRefresh())
             else:
                 self.notify(f"{icons.ERROR} Error leaving challenge", severity="error")
 
@@ -338,7 +337,7 @@ class ChallengeDetailScreen(ModalScreen):
 
 
 class ChallengesTab(Vertical, BaseTab):
-    """Tab for managing challenges with inbox-style interface."""
+    """Tab for managing challenges with tabbed interface and lazy loading."""
 
     BINDINGS = [
         Binding("m", "challenges_mine", "My Challenges"),
@@ -481,6 +480,32 @@ class ChallengesTab(Vertical, BaseTab):
 
         yield Label(title, classes="tab-title")
 
+        # Clickable mode selector - touch friendly!
+        modes = [
+            ("mine", f"{icons.GOAL} Mine", "m"),
+            ("owned", f"{icons.CROWN} Owned", "o"),
+            ("joined", f"{icons.CHECK} Joined", "j"),
+            ("public", f"{icons.GLOBE} Public", "p"),
+        ]
+
+        mode_parts = []
+        for i, (mode_key, mode_label, shortcut) in enumerate(modes):
+            if i > 0:
+                mode_parts.append(" • ")
+
+            if mode_key == self.current_mode:
+                # Current mode - highlighted but not clickable
+                mode_parts.append(f"[bold blue]{mode_label}[/]")
+            else:
+                # Other modes - clickable with specific click actions
+                mode_parts.append(f"[@click=click_{mode_key}]{mode_label}[/]")
+
+            # Add keyboard shortcut hint
+            mode_parts.append(f" [dim]({shortcut})[/]")
+
+        mode_selector = "".join(mode_parts)
+        yield Static(mode_selector, classes="mode-selector")
+
         current_challenges = self._get_challenges_for_mode()
 
         if not current_challenges:
@@ -558,6 +583,23 @@ class ChallengesTab(Vertical, BaseTab):
     def handle_challenges_refresh(self) -> None:
         """Catches the refresh message and triggers a data update."""
         self.refresh_data()
+
+    # Actions específicas para los clicks (más compatibles)
+    def action_click_mine(self) -> None:
+        """Handle mine click."""
+        self.action_challenges_mine()
+
+    def action_click_owned(self) -> None:
+        """Handle owned click."""
+        self.action_challenges_owned()
+
+    def action_click_joined(self) -> None:
+        """Handle joined click."""
+        self.action_challenges_joined()
+
+    def action_click_public(self) -> None:
+        """Handle public click."""
+        self.action_challenges_public()
 
     def action_challenges_mine(self) -> None:
         """Show all my challenges."""

@@ -94,8 +94,8 @@ class TagFactory:
         """Build mapping dictionaries for tag ID to trait relationships."""
         self.id_to_attr = {}
         self.attr_to_parent = {}
-        if self.tag_settings:
-            log.warning("NO HAY TAGSS")
+        if not self.tag_settings:
+            log.warning("Missing tag_settings.")
         if self.tag_settings.id_attr_str:
             self.id_to_attr[str(self.tag_settings.id_attr_str)] = "str"
         if self.tag_settings.id_attr_int:
@@ -238,6 +238,13 @@ class TagFactory:
             )
             raise
 
+    def process_tags_list(self, raw_list: list[dict[str, Any]]) -> TagCollection:
+        tags: list[TagComplex] = []
+        for i, raw_data in enumerate(raw_list):
+            tag: TagComplex = self.create_tag(raw_data, position=i)
+            tags.append(tag)
+        return TagCollection(tags=tags)
+
 
 # ─── Tag Collection ────────────────────────────────────────────────────────────
 class TagCollection(HabiTuiBaseModel):
@@ -253,18 +260,7 @@ class TagCollection(HabiTuiBaseModel):
     def from_api_data(cls, raw_list: list[dict[str, Any]]) -> TagCollection:
         """Create TagCollection from raw API data."""
         factory = TagFactory()
-        tags = []
-
-        for i, raw_data in enumerate(raw_list):
-            if isinstance(raw_data, dict):
-                try:
-                    tag = factory.create_tag(raw_data, position=i)
-                    tags.append(tag)
-                except ValidationError:
-                    log.warning("Skipping invalid tag data: {}", raw_data)
-                    continue
-
-        return cls(tags=tags)
+        return factory.process_tags_list(raw_list)
 
     # ─── Core CRUD Operations ──────────────────────────────────────────────────
     def add_tag(self, tag: TagComplex) -> None:

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import uuid
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, Literal, cast
 from datetime import date, datetime
 
 from pydantic import PrivateAttr, field_validator
@@ -781,6 +781,15 @@ class TaskCollection(HabiTuiBaseModel):
                 else:
                     tags[tag] += 1
         return dict(sorted(tags.items(), key=lambda x: x[1], reverse=True))
+
+    def get_damage(self) -> tuple[float | Literal[0], float | Literal[0]]:
+        party_damage = 0
+        user_damage = 0
+        for task in self.dailys:
+            party_damage += task.party_damage
+            user_damage += task.user_damage
+        log.info(f"{party_damage}, {user_damage}")
+        return party_damage, user_damage
 
     # ──────────────────────────────────────────────────────────────────────────────
     def __len__(self) -> int:

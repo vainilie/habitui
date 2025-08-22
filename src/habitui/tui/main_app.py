@@ -54,7 +54,7 @@ class HabiTUI(App):
         self.theme_manager: TextualThemeManager = TextualThemeManager(self)
         self.habitica_api = cast(
             "HabiticaBatcher[HabiticaClient] | HabiticaClient",
-            HabiticaBatcher(HabiticaClient()),
+            HabiticaBatcher(HabiticaClient(), self),
         )
         self.vault: DataVault | None = None
         self.logging = LoggingMixin()

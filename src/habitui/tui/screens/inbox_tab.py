@@ -72,7 +72,7 @@ class MessageInputWidget(Container):
 class ConversationHeaderWidget(Container):
     """Widget for conversation headers."""
 
-    def __init__(self, sender_name: str, sender_username: str):
+    def __init__(self, sender_name: str, sender_username: str) -> None:
         """Initialize the conversation header.
 
         :param sender_name: Display name of the sender
@@ -94,7 +94,7 @@ class ConversationHeaderWidget(Container):
 class MessageListWidget(VerticalScroll):
     """Widget to display a list of messages."""
 
-    def __init__(self, messages: list[UserMessage]):
+    def __init__(self, messages: list[UserMessage]) -> None:
         """Initialize the message list.
 
         :param messages: A list of UserMessage objects
@@ -138,7 +138,7 @@ class MessageListWidget(VerticalScroll):
 class ConfirmDeleteScreen(Screen):
     """Modal screen to confirm message deletion."""
 
-    def __init__(self, message_id: str):
+    def __init__(self, message_id: str) -> None:
         """Initialize the confirmation screen.
 
         :param message_id: The ID of the message to be deleted
@@ -176,7 +176,7 @@ class MessageDetailScreen(ModalScreen):
         Binding("escape", "back_to_conversations", "Back"),
     ]
 
-    def __init__(self, conversation_data: dict[str, Any]):
+    def __init__(self, conversation_data: dict[str, Any]) -> None:
         """Initialize the detail screen.
 
         :param conversation_data: Dictionary containing conversation details
@@ -276,7 +276,6 @@ class MessageDetailScreen(ModalScreen):
                 )
 
     def action_delete_message(self) -> None:
-        """Action to initiate message deletion."""
         if not self.selected_message_id:
             self.notify(f"{icons.WARNING} Select a message first", severity="warning")
 
@@ -305,7 +304,7 @@ class InboxTab(Vertical, BaseTab):
         """Initialize the Inbox tab."""
         super().__init__()
         self.app: HabiTUI
-        self.conversations = self.vault.user.get_inbox_by_senders()
+        self.conversations = self.vault.ensure_user_loaded().get_inbox_by_senders()
         log.info("InboxTab: initialized")
 
     def get_conversation(self, conversation_id: str) -> dict[str, Any] | None:
@@ -384,7 +383,7 @@ class InboxTab(Vertical, BaseTab):
         """Update the inbox data from the vault."""
         log.info("InboxTab: refreshing data")
         try:
-            self.conversations = self.vault.user.get_inbox_by_senders()
+            self.conversations = self.vault.ensure_user_loaded().get_inbox_by_senders()
             self.mutate_reactive(InboxTab.conversations)
             self.notify(
                 f"{icons.CHECK} Inbox updated successfully!",
@@ -401,9 +400,7 @@ class InboxTab(Vertical, BaseTab):
 
     @on(InboxNeedsRefresh)
     def handle_inbox_refresh(self) -> None:
-        """Catches the refresh message and triggers a data update."""
         self.refresh_data()
 
     def action_refresh_data(self) -> None:
-        """Action to trigger a data refresh."""
         self.refresh_data()

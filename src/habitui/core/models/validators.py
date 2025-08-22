@@ -226,13 +226,15 @@ def daily_status(
 
 def calculate_task_damage(data: Box, user: UserCollection) -> None:
     """Calculate and sets user and party damage on the task data."""
-    data.user_damage = 0.0
-    data.party_damage = 0.0
+    data["user_damage"] = 0.0
+    data["party_damage"] = 0.0
+    should_apply_damage = False
 
-    should_apply_damage = data.due_today and not data.completed
-    if user.is_sleeping() and user.get_stealth() >= 1:
+    if user.is_sleeping() is True and user.get_stealth() >= 1:
         should_apply_damage = False
 
+    if data.is_due is True and not data.completed:
+        should_apply_damage = True
     if not should_apply_damage:
         return
 

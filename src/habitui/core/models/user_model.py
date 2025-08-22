@@ -486,7 +486,7 @@ class UserStatsComputed(HabiTuiSQLModel, table=True):
         boss_str = 0.0
         if (
             (quest_key := user_state.current_quest_key)
-            and (quest := content_vault.get_quest(quest_key))
+            and (quest := content_vault.get_quest(decamelize(quest_key)))
             and quest.is_boss_quest
             and quest.boss_str is not None
         ):
