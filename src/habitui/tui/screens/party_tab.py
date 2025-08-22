@@ -64,6 +64,7 @@ class PartyTab(BaseTab):
         )
         self.party_chat_user = self.vault.party.get_user_messages()
 
+
     # ─── UI Composition ────────────────────────────────────────────────────────────
 
     def compose(self) -> ComposeResult:
@@ -466,7 +467,6 @@ class PartyTab(BaseTab):
             self.notify(
                 f"{icons.CHECK} Message sent!",
                 title="Party Chat",
-                severity="information",
             )
             log.info(f"{icons.CHECK} Party message sent")
         except Exception as e:
@@ -504,7 +504,6 @@ class PartyTab(BaseTab):
                 self.notify(
                     f"{icons.INFO} No spell information available",
                     title="Spells",
-                    severity="information",
                 )
 
                 return
@@ -585,7 +584,6 @@ class PartyTab(BaseTab):
             self.notify(
                 f"{icons.WAND} '{spell_name}' cast successfully!",
                 title="Spell Cast",
-                severity="information",
             )
             log.info(f"{icons.CHECK} Spell cast successfully: {spell_key}")
 

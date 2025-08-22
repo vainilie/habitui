@@ -13,6 +13,7 @@ from textual.message import Message
 from textual.widgets import (
     Label,
     Button,
+    Select,
     Static,
     ListItem,
     ListView,
@@ -49,8 +50,8 @@ class ChallengesNeedRefresh(Message):
 class ChallengeTasksWidget(VerticalScroll):
     """Widget to display challenge tasks."""
 
-    def __init__(self, tasks: ChallengeCollection):
-        """Initialize the tasks widget.
+    def __init__(self, tasks: ChallengeCollection) -> None:
+        """Initialize the tasks' widget.
 
         :param tasks: A list of challenge tasks
         """
@@ -130,7 +131,7 @@ class JoinChallengeScreen(ModalScreen):
                 yield Label(f'"{self.challenge_name}"', classes="challenge-preview")
 
                 with Horizontal(classes="modal-buttons"):
-                    yield Button("Cancel", id="cancel", variant="default")
+                    yield Button("Cancel", id="cancel", variant="warning")
                     yield Button("Join Challenge", id="confirm", variant="success")
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
@@ -167,7 +168,7 @@ class LeaveChallengeScreen(ModalScreen):
                 )
 
                 with Horizontal(classes="modal-buttons"):
-                    yield Button("Cancel", id="cancel", variant="default")
+                    yield Button("Cancel", id="cancel", variant="warning")
                     yield Button("Delete Tasks", id="delete-tasks", variant="error")
                     yield Button("Keep Tasks", id="keep-tasks", variant="success")
 
@@ -480,30 +481,21 @@ class ChallengesTab(Vertical, BaseTab):
 
         yield Label(title, classes="tab-title")
 
-        # Mode selector using OptionList - touch friendly!
-        modes_options = []
-        modes = [
-            ("mine", f"{icons.GOAL} Mine", "m"),
-            ("owned", f"{icons.CROWN} Owned", "o"),
-            ("joined", f"{icons.CHECK} Joined", "j"),
-            ("public", f"{icons.GLOBE} Public", "p"),
+        modes_options = [
+            (f"{icons.GOAL} Mine", "mine"),
+            (f"{icons.CROWN} Owned", "owned"),
+            (f"{icons.CHECK} Joined", "joined"),
+            (f"{icons.GLOBE} Public", "public"),
         ]
 
-        for mode_key, mode_label, shortcut in modes:
-            if mode_key == self.current_mode:
-                # Current mode - highlighted
-                option_text = f"[bold blue]► {mode_label}[/] [dim]({shortcut})[/]"
-            else:
-                # Other modes - normal
-                option_text = f"  {mode_label} [dim]({shortcut})[/]"
-
-            modes_options.append(Option(option_text, id=f"mode_{mode_key}"))
-
-        yield OptionList(
-            *modes_options,
+        my_select: Select[str] = Select(
+            modes_options,
+            value=self.current_mode,
+            compact=True,
             id="mode_selector",
-            classes="mode-selector-list",
+            classes="mode-selector-dropdown",
         )
+        yield my_select
 
         current_challenges = self._get_challenges_for_mode()
 
@@ -530,27 +522,26 @@ class ChallengesTab(Vertical, BaseTab):
             classes="select-line",
         )
 
+    @on(Select.Changed)
+    def select_changed(self, event: Select.Changed) -> None:
+        """Handle mode selection change."""
+        if event.select.id == "mode_selector":
+            mode = event.value
+            if mode == "mine":
+                self.action_challenges_mine()
+            elif mode == "owned":
+                self.action_challenges_owned()
+            elif mode == "joined":
+                self.action_challenges_joined()
+            elif mode == "public":
+                self.action_challenges_public()
+
     async def on_option_list_option_selected(
         self,
         event: OptionList.OptionSelected,
     ) -> None:
-        """Handle both mode selection and challenge selection."""
-        if event.option_list.id == "mode_selector":
-            # Handle mode selection
-            mode_id = str(event.option.id)
-            if mode_id.startswith("mode_"):
-                mode = mode_id[5:]  # Remove "mode_" prefix
-                if mode == "mine":
-                    self.action_challenges_mine()
-                elif mode == "owned":
-                    self.action_challenges_owned()
-                elif mode == "joined":
-                    self.action_challenges_joined()
-                elif mode == "public":
-                    self.action_challenges_public()
-
-        elif event.option_list.id == "challenges_list":
-            # Handle challenge selection
+        """Handle challenge selection."""
+        if event.option_list.id == "challenges_list":
             challenge_id = str(event.option.id)
 
             # Para challenges públicos, usar los datos raw

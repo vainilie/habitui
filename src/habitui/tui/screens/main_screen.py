@@ -14,6 +14,7 @@ from habitui.tui.main import TextualLogConsole
 from habitui.tui.main.api_handler import PendingCalls, SuccessfulCalls
 
 from .tag_tab import TagsTab
+from .task_tab import TasksTab
 from .inbox_tab import InboxTab
 from .party_tab import PartyTab
 from .profile_tab import ProfileTab
@@ -71,7 +72,7 @@ class MainScreen(Screen):
                 with TabPane("Config", id="config"):
                     pass
                 with TabPane("Tasks", id="tasks"):
-                    pass
+                    yield TasksTab()
             with Vertical(id="sidebar", disabled=True):
                 yield TextualLogConsole(id="log-console")
 
