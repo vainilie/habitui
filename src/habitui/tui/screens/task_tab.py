@@ -139,7 +139,7 @@ class TasksTab(Vertical, BaseTab):
         )
 
         notes = getattr(task, "notes", "") or ""
-        notes_preview = (notes[:50] + "...") if len(notes) > 50 else notes or "No notes"
+        notes_preview = notes or "No notes"
 
         grid.add_row(
             f"[dim]{notes_preview}[/]",
