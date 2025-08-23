@@ -714,8 +714,12 @@ class UserCollection(HabiTuiBaseModel):
         return class_icons.get(obj.lower(), icons.USER)
 
     def get_display_data(self) -> dict[str, Any]:
-        current_quest_key = self.user_state.current_quest_key
-        quest_name = f"{current_quest_key.capitalize()}"  # type: ignore
+        quest_name = ""
+        current_quest_key = ""
+        if self.user_state.current_quest_key:
+            current_quest_key = self.user_state.current_quest_key
+            quest_name = f"{current_quest_key.capitalize()}"  # type: ignore
+
         status_parts = []
 
         if self.user_state.current_quest_completed:

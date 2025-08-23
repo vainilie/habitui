@@ -19,22 +19,7 @@ from .user_model import UserCollection, ChallengeInUser
 
 
 class ChallengeTaskBase(HabiTuiSQLModel, table=False):
-    """Abstract base model for all challenge task types.
-
-    :param challenge_id: The ID of the challenge this task belongs to.
-    :param type: The type of task (e.g., habit, daily).
-    :param text: The text/description of the task.
-    :param notes: Additional notes for the task.
-    :param value: The task's value.
-    :param priority: The task's priority.
-    :param attribute: The character attribute associated with the task.
-    :param by_habitica: True if the task was created by Habitica.
-    :param created_at: Timestamp when the task was created.
-    :param updated_at: Timestamp when the task was last updated.
-    :param challenge: Dictionary containing challenge-specific metadata.
-    :param group: Dictionary containing group-specific metadata.
-    :param reminders: List of reminder objects for the task.
-    """
+    """Abstract base model for all challenge task types."""
 
     challenge_id: str = Field(index=True)
     type: TaskType
@@ -62,31 +47,19 @@ class ChallengeTaskBase(HabiTuiSQLModel, table=False):
     @field_validator("text", "notes", mode="before")
     @classmethod
     def _clean_text(cls, v: Any) -> str:
-        """Clean text fields by replacing emoji shortcodes.
-
-        :param v: The input text.
-        :returns: The cleaned string.
-        """
+        """Clean text fields by replacing emoji shortcodes."""
         return validators.replace_emoji_shortcodes(v)
 
     @field_validator("created_at", "updated_at", mode="before")
     @classmethod
     def _parse_dates(cls, v: Any) -> datetime.datetime | None:
-        """Parse date strings into timezone-aware datetime objects.
-
-        :param v: The date string.
-        :returns: A datetime object, or None.
-        """
+        """Parse date strings into timezone-aware datetime objects."""
         return validators.parse_datetime(v)
 
     @field_validator("attribute", mode="before")
     @classmethod
     def _normalize_attr(cls, v: Any) -> str | None:
-        """Normalize attribute names.
-
-        :param v: The attribute value.
-        :returns: The normalized attribute name, or None.
-        """
+        """Normalize attribute names."""
         return validators.normalize_attribute(v)
 
 
@@ -178,21 +151,13 @@ class ChallengeInfo(HabiTuiSQLModel, table=True):
     )
     @classmethod
     def _clean_text(cls, v: Any) -> str:
-        """Clean text fields by replacing emoji shortcodes.
-
-        :param v: The input text.
-        :returns: The cleaned string.
-        """
+        """Clean text fields by replacing emoji shortcodes."""
         return validators.replace_emoji_shortcodes(v)
 
     @field_validator("created_at", "updated_at", mode="before")
     @classmethod
     def _parse_dates(cls, v: Any) -> datetime.datetime | None:
-        """Parse date strings into timezone-aware datetime objects.
-
-        :param v: The date string.
-        :returns: A datetime object, or None.
-        """
+        """Parse date strings into timezone-aware datetime objects."""
         return validators.parse_datetime(v)
 
     @classmethod
@@ -203,12 +168,12 @@ class ChallengeInfo(HabiTuiSQLModel, table=True):
         user_challenge_ids: set[str] | None = None,
         task_challenge_ids: set[str] | None = None,
     ) -> dict[str, Any]:
-        """Flatten Box API data into a dictionary suitable for model validation.
+        """Flatten Box API data into a dictionary for model validation.
 
         :param data: The raw API data as a Box object.
         :param user_id: The ID of the current user.
         :param user_challenge_ids: Set of challenge IDs the user has joined.
-        :param task_challenge_ids: Set of challenge IDs associated with user's tasks.
+        :param task_challenge_ids: Set of challenge IDs from user's tasks.
         :returns: A dictionary with flattened data.
         """
         flat_data = data.copy()
@@ -217,12 +182,14 @@ class ChallengeInfo(HabiTuiSQLModel, table=True):
             flat_data["group_name"] = group.name
             flat_data["group_id"] = group.id
             flat_data["group_type"] = group.type
+
             if group.name != "Tavern":
                 flat_data["legacy"] = True
 
         if leader := data.leader:
             flat_data["leader_id"] = leader.id
             flat_data["leader_name"] = leader.profile.name
+
             if local_auth := leader.auth.get("local"):
                 flat_data["leader_username"] = local_auth.username
 
@@ -251,12 +218,12 @@ class ChallengeInfo(HabiTuiSQLModel, table=True):
         user_context: UserCollection | None,
         task_challenge_ids: set[str],
     ) -> Self:
-        """Create a ChallengeInfo instance from API data, including relationship status.
+        """Create a ChallengeInfo instance from API data.
 
-        :param data: The raw API data for the challenge as a Box object.
-        :param user_context: The user's collection for contextual information.
-        :param task_challenge_ids: Set of challenge IDs associated with user's tasks.
-        :returns: A `ChallengeInfo` instance.
+        :param data: The raw API data for the challenge.
+        :param user_context: The user's collection for contextual info.
+        :param task_challenge_ids: Set of challenge IDs from user's tasks.
+        :returns: A ChallengeInfo instance.
         """
         user_id = user_context.profile.id if user_context else None
         user_challenge_ids = (
@@ -273,28 +240,18 @@ class ChallengeInfo(HabiTuiSQLModel, table=True):
         return cls.model_validate(flat_data)
 
 
-# --- Concrete Challenge Task Models ---
+# ─── Concrete Challenge Task Models ──────────────────────────────────────────
 
 
 class ChallengeTaskReward(ChallengeTaskBase, table=True):
-    """Represent a reward task within a challenge.
-
-    Inherits from `ChallengeTaskBase`.
-    """
+    """Represents a reward task within a challenge."""
 
     __tablename__ = "challenge_task_reward"  # type: ignore
     type: TaskType = TaskType.REWARD
 
 
 class ChallengeTaskHabit(ChallengeTaskBase, table=True):
-    """Represent a habit task within a challenge.
-
-    :param up: True if the habit has an 'up' (positive) component.
-    :param down: True if the habit has a 'down' (negative) component.
-    :param counter_up: Counter for positive clicks.
-    :param counter_down: Counter for negative clicks.
-    :param frequency: Frequency of the habit.
-    """
+    """Represents a habit task within a challenge."""
 
     __tablename__ = "challenge_task_habit"  # type: ignore
     type: TaskType = TaskType.HABIT
@@ -318,11 +275,7 @@ class ChallengeTaskHabit(ChallengeTaskBase, table=True):
 
 
 class ChallengeTaskTodo(ChallengeTaskBase, table=True):
-    """Represent a To-Do task within a challenge.
-
-    :param date: The due date of the todo.
-    :param checklist: List of checklist items.
-    """
+    """Represents a To-Do task within a challenge."""
 
     __tablename__ = "challenge_task_todo"  # type: ignore
     type: TaskType = TaskType.TODO
@@ -347,29 +300,12 @@ class ChallengeTaskTodo(ChallengeTaskBase, table=True):
     @field_validator("date", mode="before")
     @classmethod
     def _parse_due_date(cls, v: Any) -> datetime.datetime | None:
-        """Parse the due date string into a datetime object.
-
-        :param v: The due date string.
-        :returns: A datetime object, or None.
-        """
+        """Parse the due date string into a datetime object."""
         return validators.parse_datetime(v)
 
 
 class ChallengeTaskDaily(ChallengeTaskBase, table=True):
-    """Represent a daily task within a challenge.
-
-    :param frequency: Frequency of the daily.
-    :param every_x: Repeats every X days/weeks/months/years.
-    :param start_date: Start date for the daily.
-    :param streak: Current streak for the daily.
-    :param is_due: True if the daily is due.
-    :param yester_daily: True if the daily was due yesterday and missed.
-    :param checklist: List of checklist items.
-    :param repeat: Dictionary of days of the week to repeat.
-    :param days_of_month: Specific days of the month to repeat.
-    :param weeks_of_month: Specific weeks of the month to repeat.
-    :param next_due: List of next due dates.
-    """
+    """Represents a daily task within a challenge."""
 
     __tablename__ = "challenge_task_daily"  # type: ignore
     type: TaskType = TaskType.DAILY
@@ -418,33 +354,27 @@ class ChallengeTaskDaily(ChallengeTaskBase, table=True):
     @field_validator("start_date", mode="before")
     @classmethod
     def _parse_start_date(cls, v: Any) -> datetime.datetime | None:
-        """Parse the start date string into a datetime object.
-
-        :param v: The start date string.
-        :returns: A datetime object, or None.
-        """
+        """Parse the start date string into a datetime object."""
         return validators.parse_datetime(v)
 
     @field_validator("next_due", mode="before")
     @classmethod
     def _parse_next_due_dates(cls, value: Any) -> list[datetime.datetime | None]:
-        """Parse a list of next due date strings into datetime objects.
-
-        :param value: A list of next due date strings.
-        :returns: A list of datetime objects, with None for unparseable entries.
-        """
+        """Parse a list of next due date strings into datetime objects."""
         if not value:
             return []
+
         if isinstance(value, list):
             return [
                 validators.parse_datetime(date_str)
                 for date_str in value
                 if date_str is not None
             ]
+
         return []
 
 
-# --- Collection Orchestrator ---
+# ─── Collection Orchestrator ─────────────────────────────────────────────────
 
 
 class ChallengeCollection(HabiTuiBaseModel):
@@ -477,13 +407,11 @@ class ChallengeCollection(HabiTuiBaseModel):
     ) -> Self:
         """Parse raw API data into a ChallengeCollection.
 
-        This method acts as a dispatcher to the appropriate specialized constructor.
-
         :param challenges_data: Raw API data for challenges.
         :param challenge_tasks_data: Raw API data for challenge tasks.
         :param user: User context for challenge relationships.
         :param tasks: Task context for challenge relationships.
-        :returns: A populated `ChallengeCollection` instance.
+        :returns: A populated ChallengeCollection instance.
         """
         if challenges_data and challenge_tasks_data:
             return cls.from_combined_data(
@@ -631,6 +559,7 @@ class ChallengeCollection(HabiTuiBaseModel):
                     raw_challenge.get("id", "N/A"),
                     e,
                 )
+
         return parsed_list
 
     @staticmethod
@@ -684,17 +613,11 @@ class ChallengeCollection(HabiTuiBaseModel):
         )
 
     def get_user_challenge_ids(self) -> list[str]:
-        """Get list of user challenge IDs for validation purposes.
-
-        :returns: A list of user challenge IDs.
-        """
+        """Get a list of challenge IDs the user has joined."""
         return [challenge.id for challenge in self.user_challenges]
 
     def get_task_challenge_ids(self) -> list[str]:
-        """Get list of task challenge IDs for validation purposes.
-
-        :returns: A list of task challenge IDs.
-        """
+        """Get a list of challenge IDs associated with the user's tasks."""
         return [challenge.id for challenge in self.task_challenges]
 
     def add_challenge_from_dict(
@@ -706,25 +629,20 @@ class ChallengeCollection(HabiTuiBaseModel):
         """Add a challenge from a dictionary.
 
         :param challenge_data: Dictionary with challenge data.
-        :param user: Optional UserCollection for user ID and validating user challenges.
-        :returns: True if the challenge was added successfully, False otherwise.
+        :param user: Optional UserCollection for context.
+        :param tasks: Optional TaskCollection for context.
+        :returns: True if the challenge was added successfully.
         """
         try:
-            # Get existing challenge IDs for validation
             user_challenge_ids = {c.id for c in self.user_challenges}
             task_challenge_ids = (
                 {c.challenge_id for c in tasks.all_tasks if c.challenge_id}
                 if tasks
                 else set()
             )
-
-            # Get user_id
             user_id = user.profile.id if user else None
-
-            # Process data using Box for normalization
             data = Box(challenge_data, default_box=True, camel_killer_box=True)
 
-            # Flatten data using the existing method
             flat_data = ChallengeInfo._flatten_api_data(  # noqa: SLF001
                 data,
                 user_id,
@@ -732,169 +650,100 @@ class ChallengeCollection(HabiTuiBaseModel):
                 task_challenge_ids,
             )
 
-            # Validate and create the challenge
             new_challenge = ChallengeInfo.model_validate(flat_data)
 
-            # Check if the challenge already exists
-            if any(challenge.id == new_challenge.id for challenge in self.challenges):
+            if any(c.id == new_challenge.id for c in self.challenges):
                 log.warning("Challenge with ID {} already exists", new_challenge.id)
+
                 return False
 
-            # Add the challenge to the collection
             self.challenges.append(new_challenge)
-
             log.info("Challenge {} added successfully", new_challenge.id)
+
+            return True
 
         except (ValidationError, KeyError) as e:
             log.error("Failed to add challenge from dict: {}", e)
+
             return False
-        else:
-            return True
 
     def remove_challenge_by_id(self, challenge_id: str) -> bool:
         """Remove a challenge by its ID.
 
         :param challenge_id: ID of the challenge to remove.
-        :returns: True if the challenge was removed successfully, False if not found.
+        :returns: True if the challenge was removed successfully.
         """
-        try:
-            # Find the challenge by ID
-            challenge_to_remove = None
-            for i, challenge in enumerate(self.challenges):
-                if challenge.id == challenge_id:
-                    challenge_to_remove = self.challenges.pop(i)
-                    break
+        initial_len = len(self.challenges)
+        self.challenges = [c for c in self.challenges if c.id != challenge_id]
+        was_removed = len(self.challenges) < initial_len
 
-            if challenge_to_remove:
-                log.info("Challenge {} removed successfully", challenge_id)
-                return True
+        if was_removed:
+            log.info("Challenge {} removed successfully", challenge_id)
+        else:
             log.warning("Challenge with ID {} not found", challenge_id)
 
-        except Exception as e:
-            log.error("Failed to remove challenge {}: {}", challenge_id, e)
-            return False
-        else:
-            return False
-
-    def get_challenge_by_id(self, challenge_id: str) -> ChallengeInfo | None:
-        """Get a challenge by its ID.
-
-        :param challenge_id: ID of the challenge to find.
-        :returns: The challenge if found, None if it does not exist.
-        """
-        try:
-            for challenge in self.challenges:
-                if challenge.id == challenge_id:
-                    return challenge
-
-            log.debug("Challenge with ID {} not found", challenge_id)
-
-        except Exception as e:
-            log.error("Failed to get challenge {}: {}", challenge_id, e)
-            return None
-        else:
-            return None
+        return was_removed
 
     def find_challenge_by_id(self, challenge_id: str) -> ChallengeInfo | None:
-        """Find a challenge by its ID using next() for efficiency.
+        """Find a challenge by its ID.
 
         :param challenge_id: ID of the challenge to find.
-        :returns: The challenge if found, None if it does not exist.
-        """
-        try:
-            return next((c for c in self.challenges if c.id == challenge_id), None)
-
-        except Exception as e:
-            log.error("Failed to find challenge {}: {}", challenge_id, e)
-            return None
-
-    def get_challenge_by_id_with_validation(
-        self,
-        challenge_id: str,
-        raise_if_not_found: bool = False,
-    ) -> ChallengeInfo | None:
-        """Get a challenge by its ID with additional validation.
-
-        :param challenge_id: ID of the challenge to find.
-        :param raise_if_not_found: If True, raises an exception if not found.
-        :returns: The challenge if found, None if it does not exist.
-        :raises ValueError: If raise_if_not_found=True and the challenge does not exist or invalid ID.
+        :returns: The challenge if found, otherwise None.
         """
         if not challenge_id or not isinstance(challenge_id, str):
             log.error("Invalid challenge_id provided: {}", challenge_id)
-            if raise_if_not_found:
-                msg = f"Invalid challenge_id: {challenge_id}"
-                raise ValueError(msg)
+
             return None
 
-        try:
-            challenge = next((c for c in self.challenges if c.id == challenge_id), None)
-
-            if challenge is None and raise_if_not_found:
-                msg = f"Challenge with ID '{challenge_id}' not found"
-                raise ValueError(msg)
-
-        except ValueError:
-            raise  # Re-raise ValueError
-        except Exception as e:
-            log.error("Failed to get challenge {}: {}", challenge_id, e)
-            if raise_if_not_found:
-                raise
-            return None
-        else:
-            return challenge
-
-    def remove_challenge_by_id_efficient(self, challenge_id: str) -> bool:
-        """Remove a challenge by its ID efficiently.
-
-        :param challenge_id: ID of the challenge to remove.
-        :returns: True if the challenge was removed successfully, False if not found.
-        """
-        try:
-            original_length = len(self.challenges)
-            self.challenges = [c for c in self.challenges if c.id != challenge_id]
-
-            if len(self.challenges) < original_length:
-                log.info("Challenge {} removed successfully", challenge_id)
-                return True
-            log.warning("Challenge with ID {} not found", challenge_id)
-
-        except Exception as e:
-            log.error("Failed to remove challenge {}: {}", challenge_id, e)
-            return False
-        else:
-            return False
+        return next((c for c in self.challenges if c.id == challenge_id), None)
 
     def get_joined_challenges(self) -> dict[str, ChallengeInfo]:
-        joined = {}
-        for challenge in self.challenges:
-            if challenge.joined:
-                joined[challenge.id] = challenge
-        return joined
+        """Get a dictionary of all challenges the user has joined."""
+        return {
+            c.id: c
+            for c in sorted(
+                (c for c in self.challenges if c.joined),
+                key=lambda c: c.created_at or datetime.datetime.min,
+                reverse=True,
+            )
+        }
 
     def get_owned_challenges(self) -> dict[str, ChallengeInfo]:
-        owned = {}
-        for challenge in self.challenges:
-            if challenge.owned:
-                owned[challenge.id] = challenge
-        return owned
+        """Get a dictionary of all challenges the user owns."""
+        return {
+            c.id: c
+            for c in sorted(
+                (c for c in self.challenges if c.owned),
+                key=lambda c: c.created_at or datetime.datetime.min,
+                reverse=True,
+            )
+        }
 
     def get_all_challenges(self) -> dict[str, ChallengeInfo]:
-        all_challenges = {}
-        for challenge in self.challenges:
-            all_challenges[challenge.id] = challenge
-        return all_challenges
+        """Get a dictionary of all challenges."""
+        return {
+            c.id: c
+            for c in sorted(
+                self.challenges,
+                key=lambda c: c.created_at or datetime.datetime.min,
+                reverse=True,
+            )
+        }
 
     def get_legacy_challenges(self) -> dict[str, ChallengeInfo]:
-        legacy = {}
-        for challenge in self.challenges:
-            if challenge.legacy:
-                legacy[challenge.id] = challenge
-        return legacy
+        """Get a dictionary of all legacy challenges."""
+        return {
+            c.id: c
+            for c in sorted(
+                (c for c in self.challenges if c.legacy),
+                key=lambda c: c.created_at or datetime.datetime.min,
+                reverse=True,
+            )
+        }
 
     @property
     def all_tasks(self) -> list[Any]:
-        """Return a single list containing all primary tasks."""
+        """Return a single list containing all challenge tasks."""
         return [
             *self.challenge_tasks_todo,
             *self.challenge_tasks_daily,

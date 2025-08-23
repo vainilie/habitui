@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING, Any
 from itertools import starmap
 
 from rich.table import Table
+from rich.markdown import Markdown as rMarkdown
 
 from textual import on, work
 from textual.app import ComposeResult
@@ -24,7 +25,7 @@ from textual.reactive import reactive
 from textual.containers import Vertical, Container, Horizontal, VerticalScroll
 from textual.widgets.option_list import Option
 
-from habitui.ui import icons
+from habitui.ui import icons, parse_emoji
 from habitui.utils import DateTimeHandler
 from habitui.tui.generic import BaseTab
 from habitui.custom_logger import log
@@ -124,7 +125,7 @@ class JoinChallengeScreen(ModalScreen):
         """Compose the join dialog."""
         with Container(classes="input-dialog"):
             join_screen = Vertical()
-            join_screen.border_title = f"{icons.PLUS} Join Challenge"
+            join_screen.border_title = f"{icons.PLUS_CIRCLE} Join Challenge"
 
             with join_screen:
                 yield Label("Join this challenge?")
@@ -213,7 +214,6 @@ class ChallengeDetailScreen(Screen):
             challenge.member_count,
         )
 
-        # Challenge info panel
         with VerticalScroll(classes="challenge-info"):
             if challenge.summary:
                 summary_panel = Static(classes="info-panel")
@@ -377,39 +377,39 @@ class ChallengesTab(Vertical, BaseTab):
         :param challenge_data: The challenge data
         :returns: A configured Option widget
         """
-        grid = Table.grid(expand=True, padding=(0, 1))
-        grid.add_column(ratio=3)
-        grid.add_column(ratio=1, justify="right")
+        grid = Table(expand=True, padding=(0, 1), show_header=False, show_lines=True)
+        grid.add_column(justify="center", ratio=1)
+        grid.add_column(justify="full", ratio=15)
+        grid.add_column(justify="left", ratio=3)
 
         # Status icon based on whether user joined the challenge
         status_icon = (
-            icons.CHECK if getattr(challenge_data, "joined", False) else icons.PLUS
+            icons.CHECK if getattr(challenge_data, "joined", False) else icons.BLANK
         )
-
-        # First row: Challenge name and status
-        grid.add_row(
-            f"{status_icon} [b]{challenge_data.name}[/b]",
-            f"[dim]{challenge_data.short_name}[/dim]",
-        )
-
-        # Second row: Prize, leader, and member count
-        grid.add_row(
-            f"{icons.GEM} {challenge_data.prize} • {challenge_data.leader_name}",
-            f"{icons.CROWD} {challenge_data.member_count}",
-        )
-
         # Third row: Summary and time
         time_formatted = DateTimeHandler(
             timestamp=challenge_data.created_at,
         ).format_time_difference()
 
-        summary_preview = (challenge_data.summary or "No summary")[:50]
-        if len(summary_preview) == 50:
-            summary_preview += "..."
+        grid.add_row(
+            f"{status_icon}",
+            f"[b]{parse_emoji(challenge_data.name)}[/b]",
+            f"{icons.GEM} {challenge_data.prize}",
+        )
+
+        # Second row: Prize, leader, and member count
+        grid.add_row(
+            "",
+            f"{icons.LEGACY if challenge_data.legacy else ''}{parse_emoji(challenge_data.group_name if challenge_data.legacy else 'Public')} {icons.SMALL_CIRCLE} {icons.USER} {parse_emoji(challenge_data.leader_name)}",
+            f"{icons.CROWD} {challenge_data.member_count}",
+        )
+
+        summary_preview = parse_emoji(challenge_data.summary) or "No summary"
 
         grid.add_row(
-            f"[dim]{summary_preview}[/]",
-            f"[dim]{time_formatted}[/dim]",
+            "",
+            rMarkdown(f"{summary_preview}"),
+            f"{icons.HISTORY} [dim]{time_formatted.replace(' ago', '')}[/dim]",
         )
 
         return Option(grid, id=challenge_id)
