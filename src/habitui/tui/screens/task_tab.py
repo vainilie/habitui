@@ -18,7 +18,7 @@ from textual.widgets import (
 from textual.reactive import reactive
 from textual.containers import Vertical, Horizontal
 
-from habitui.ui import icons
+from habitui.ui import icons, parse_emoji
 from habitui.utils import DateTimeHandler
 from habitui.tui.generic import BaseTab, GenericConfirmModal
 from habitui.custom_logger import log
@@ -135,13 +135,15 @@ class TasksTab(Vertical, BaseTab):
         elif getattr(task, "isDue", False) or getattr(task, "due_today", False):
             status_icon = icons.EXCLAMATION
 
-        display_name = f"[b]{task_name}[/b]"
+        display_name = f"[b]{parse_emoji(task_name)}[/b]"
 
         # Add challenge indicator if applicable
         challenge_shortname = getattr(task, "challenge_shortname", None)
         display_challenge = f"{icons.USER}[dim] Personal[/dim]"
         if challenge_shortname:
-            display_challenge = f"{icons.TROPHY}[dim] {challenge_shortname}[/dim]"
+            display_challenge = (
+                f"{icons.TROPHY}[dim] {parse_emoji(challenge_shortname)}[/dim]"
+            )
 
         # Add tags indicator if applicable
         display_tags = ""
@@ -155,7 +157,7 @@ class TasksTab(Vertical, BaseTab):
                 tag_complex = tag_collection.get_by_id(tag_uuid)
                 if tag_complex:
                     tag_name = getattr(tag_complex, "name", tag_uuid)
-                    tag_names.append(tag_name)
+                    tag_names.append(parse_emoji(tag_name))
 
             if tag_names:
                 tag_str = ", ".join(tag_names)
@@ -176,7 +178,7 @@ class TasksTab(Vertical, BaseTab):
 
         grid.add_row(
             "",
-            f"[dim]{notes_preview}[/]",
+            f"[dim]{parse_emoji(notes_preview)}[/]",
             f"[dim]{DateTimeHandler(timestamp=task.created_at).format_time_difference()}[/dim]",
         )
 
@@ -212,24 +214,24 @@ class TasksTab(Vertical, BaseTab):
                 tag_complex = tag_collection.get_by_id(tag_uuid)
                 if tag_complex:
                     tag_name = getattr(tag_complex, "name", tag_uuid)
-                    options.append((f"Tag: {tag_name}", tag_uuid))
+                    options.append((parse_emoji(tag_name), tag_uuid))
 
         return options
 
     def _get_challenge_filter_options(self) -> list[tuple[str, str]]:
-        """Get available challenge short_names for filtering."""
+        """Get available challenges for filtering (by challenge_id)."""
         options = [("All Challenges", "all")]
 
-        # Collect all unique challenge short_names
-        challenge_names = set()
+        # 1. Coleccionar challenge_id -> shortname
+        challenge_map: dict[str, str] = {}
         for task in self.tasks.all_tasks:
-            challenge_shortname = getattr(task, "challenge_shortname", None)
-            if challenge_shortname:
-                challenge_names.add(challenge_shortname)
+            cid = getattr(task, "challenge_id", None)
+            cname = getattr(task, "challenge_shortname", None)
+            if cid and cid not in challenge_map:
+                challenge_map[cid] = cname or cid
 
-        # Add each challenge as a filter option
-        for name in sorted(challenge_names):
-            options.append((f"Challenge: {name}", name))
+        for cid, cname in sorted(challenge_map.items(), key=lambda x: x[1].lower()):
+            options.append((parse_emoji(cname), cid))
 
         return options
 
@@ -277,8 +279,7 @@ class TasksTab(Vertical, BaseTab):
             tasks_list = [
                 t
                 for t in tasks_list
-                if getattr(t, "challenge_shortname", None)
-                == self.current_challenge_filter
+                if getattr(t, "challenge_id", None) == self.current_challenge_filter
             ]
 
         # Apply tag-specific filter
@@ -500,9 +501,9 @@ class TasksTab(Vertical, BaseTab):
             # Reset challenge filter if the selected challenge no longer exists
             if self.current_challenge_filter != "all":
                 available_challenges = {
-                    getattr(task, "challenge_shortname", None)
+                    getattr(task, "challenge_id", None)
                     for task in self.tasks.all_tasks
-                    if getattr(task, "challenge_shortname", None)
+                    if getattr(task, "challenge_id", None)
                 }
                 if self.current_challenge_filter not in available_challenges:
                     self.current_challenge_filter = "all"
