@@ -252,6 +252,10 @@ class TagCollection(HabiTuiBaseModel):
 
     tags: list[TagComplex] = Field(default_factory=list)
 
+    def __init__(self, **data: Any):
+        super().__init__(**data)
+        self._build_index()
+
     def _build_index(self) -> None:
         """Build internal index for fast lookups."""
         self._index_by_id = {tag.id: tag for tag in self.tags}

@@ -313,3 +313,13 @@ SimpleProgressWidget.hidden {
 }
 
 #main_list{height:50%}
+.controls-row{height:auto;
+margin:1}
+#tasks_list{
+    height: 80%;
+    border: wide $baby_pink
+}
+
+.task-selected{
+    background: $baby_pink ;
+}

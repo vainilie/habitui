@@ -37,8 +37,8 @@ class MainScreen(Screen):
         Binding("ctrl+l", "toggle_log", "Toggle Log"),
         Binding("?", "show_help", "Help"),
     ]
-    pending_op: reactive[int] = reactive(0, recompose=True)
-    success_op: reactive[int] = reactive(0, recompose=True)
+    pending_op: reactive[int] = reactive(0, recompose=False)
+    success_op: reactive[int] = reactive(0, recompose=False)
 
     def __init__(self) -> None:
         super().__init__()
