@@ -743,6 +743,13 @@ class TasksTab(Vertical, BaseTab):
         add_int_tag = []
         add_per_tag = []
         add_no_attr = []
+        add_str_attr = []
+        add_int_attr = []
+
+        add_per_attr = []
+
+        add_con_attr = []
+
         for task in self.tasks:
             if (
                 str_tag.id not in task.tags
@@ -752,6 +759,7 @@ class TasksTab(Vertical, BaseTab):
             ):
                 for tag in task.tags:
                     tag_data = self.vault.tags.get_by_id(tag)
+                    log.warning(tag_data.attribute)
                     if tag_data.attribute == "str":
                         add_str_tag.append(task.id)
                     if tag_data.attribute == "con":
@@ -760,20 +768,37 @@ class TasksTab(Vertical, BaseTab):
                         add_per_tag.append(task.id)
                     if tag_data.attribute == "int":
                         add_int_tag.append(task.id)
+            else:
+                if str_tag.id in task.tags and task.attribute != "strength":
+                    add_str_attr.append(task.id)
+                if per_tag.id in task.tags and task.attribute != "perception":
+                    add_per_attr.append(task.id)
+                if int_tag.id in task.tags and task.attribute != "intelligence":
+                    add_int_attr.append(task.id)
+                if con_tag.id in task.tags and task.attribute != "constitution":
+                    add_con_attr.append(task.id)
+        for task in self.tasks:
             if (
                 task.id not in add_con_tag
                 or task.id not in add_int_tag
                 or task.id not in add_per_tag
                 or task.id not in add_str_tag
+                or task.id not in add_con_attr
+                or task.id not in add_int_attr
+                or task.id not in add_str_attr
+                or task.id not in add_per_attr
             ):
                 add_no_attr.append(task.id)
-
         add_total = (
             len(add_str_tag)
             + len(add_con_tag)
             + len(add_per_tag)
             + len(add_no_attr)
             + len(add_int_tag)
+            + len(add_per_attr)
+            + len(add_con_attr)
+            + len(add_str_attr)
+            + len(add_int_attr)
         )
         confirm = GenericConfirmModal(
             question=f"You will tag {add_total}. Continue?",
@@ -786,12 +811,18 @@ class TasksTab(Vertical, BaseTab):
         confirmed = await self.app.push_screen(confirm, wait_for_dismiss=True)
         if confirmed:
             changes = {
-                "add": {
+                "tag": {
                     "str": add_str_tag,
                     "int": add_int_tag,
                     "con": add_con_tag,
                     "per": add_per_tag,
                     "non": add_no_attr,
+                },
+                "atr": {
+                    "str": add_str_attr,
+                    "int": add_int_attr,
+                    "con": add_con_attr,
+                    "per": add_per_attr,
                 },
             }
             await self._tag_tasks_via_api(changes)
@@ -799,50 +830,71 @@ class TasksTab(Vertical, BaseTab):
     async def _tag_tasks_via_api(self, changes: dict) -> None:
         try:
             log.info(f"{icons.RELOAD} Adding/deleting tags via API...")
-            for task_id in changes["add"]["str"]:
+            for task_id in changes["tag"]["str"]:
                 self.app.habitica_api.add_tag_to_task(
                     task_id=task_id,
-                    tag_id_to_add=self.vault.tags.get_str_parent(),
+                    tag_id_to_add=self.vault.tags.get_str_parent().id,
                 )
                 self.app.habitica_api.assign_task_attribute(
                     task_id=task_id,
                     task_attribute="str",
                 )
 
-            for task_id in changes["add"]["int"]:
+            for task_id in changes["tag"]["int"]:
                 self.app.habitica_api.add_tag_to_task(
                     task_id=task_id,
-                    tag_id_to_add=self.vault.tags.get_int_parent(),
+                    tag_id_to_add=self.vault.tags.get_int_parent().id,
                 )
                 self.app.habitica_api.assign_task_attribute(
                     task_id=task_id,
                     task_attribute="int",
                 )
 
-            for task_id in changes["add"]["per"]:
+            for task_id in changes["tag"]["per"]:
                 self.app.habitica_api.add_tag_to_task(
                     task_id=task_id,
-                    tag_id_to_add=self.vault.tags.get_per_parent(),
+                    tag_id_to_add=self.vault.tags.get_per_parent().id,
                 )
                 self.app.habitica_api.assign_task_attribute(
                     task_id=task_id,
                     task_attribute="per",
                 )
 
-            for task_id in changes["add"]["con"]:
+            for task_id in changes["tag"]["con"]:
                 self.app.habitica_api.add_tag_to_task(
                     task_id=task_id,
-                    tag_id_to_add=self.vault.tags.get_con_parent(),
+                    tag_id_to_add=self.vault.tags.get_con_parent().id,
                 )
                 self.app.habitica_api.assign_task_attribute(
                     task_id=task_id,
                     task_attribute="con",
                 )
 
-            for task_id in changes["add"]["non"]:
+            for task_id in changes["tag"]["non"]:
                 self.app.habitica_api.add_tag_to_task(
                     task_id=task_id,
-                    tag_id_to_add=self.vault.tags.get_no_attr_parent(),
+                    tag_id_to_add=self.vault.tags.get_no_attr_parent().id,
+                )
+
+            for task_id in changes["atr"]["str"]:
+                self.app.habitica_api.assign_task_attribute(
+                    task_id=task_id,
+                    task_attribute="str",
+                )
+            for task_id in changes["atr"]["con"]:
+                self.app.habitica_api.assign_task_attribute(
+                    task_id=task_id,
+                    task_attribute="con",
+                )
+            for task_id in changes["atr"]["per"]:
+                self.app.habitica_api.assign_task_attribute(
+                    task_id=task_id,
+                    task_attribute="per",
+                )
+            for task_id in changes["atr"]["int"]:
+                self.app.habitica_api.assign_task_attribute(
+                    task_id=task_id,
+                    task_attribute="int",
                 )
         except Exception as e:
             log.error(f"{icons.ERROR} Error adding/deleting tag: {e}")
