@@ -258,7 +258,7 @@ class TagsTab(BaseTab):
 
         # ── Base & Personal Tags ─────────────────────────────────────────────
         base_tags = sort_tags(self.tags_collection.base_tags)
-        personal_tags = sort_tags(self.tags_collection.personal_tags)
+        personal_tags = sort_tags(self.tags_collection.get_legacy_tags())
 
         for tag in base_tags:
             count = self.tags_count.get(tag.id, 0)  # ← corregí: get por id
@@ -272,11 +272,10 @@ class TagsTab(BaseTab):
 
         # ── Attribute Categories ─────────────────────────────────────────────
         attribute_categories = [
-            "str_tags",
-            "int_tags",
-            "per_tags",
-            "con_tags",
-            "no_attr_tags",
+            "str",
+            "int",
+            "per",
+            "con",
         ]
         attribute_labels = [
             "Strength",
@@ -291,9 +290,9 @@ class TagsTab(BaseTab):
             attribute_labels,
             strict=False,
         ):
-            if hasattr(self.tags_collection, category):
+            if self.tags_collection.get_by_attribute(category):
                 category_node = attribute_node.add(label, expand=False)
-                tags_list = sort_tags(getattr(self.tags_collection, category))
+                tags_list = sort_tags(self.tags_collection.get_by_attribute(category))
                 for tag in tags_list:
                     count = self.tags_count.get(tag.id, 0)  # ← corregí: get por id
                     name = f"({count}) {parse_emoji(tag.name)}"
