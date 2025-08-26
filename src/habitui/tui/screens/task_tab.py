@@ -729,177 +729,231 @@ class TasksTab(Vertical, BaseTab):
 
     def action_tag_tasks_workflow(self) -> None:
         """Initiate the tag creation workflow."""
-        self._tag_tasks_workflow()
+        self._cleanup_and_retag_workflow()
 
     @work
-    async def _tag_tasks_workflow(self) -> None:
+    async def _cleanup_and_retag_workflow(self) -> None:
+        """
+        Limpia todas las parent tags y no_attr, luego reclasifica basado en tags hijas
+        """
         str_tag = self.vault.tags.get_str_parent()
         per_tag = self.vault.tags.get_per_parent()
         int_tag = self.vault.tags.get_int_parent()
         con_tag = self.vault.tags.get_con_parent()
+        no_attr_tag = self.vault.tags.get_no_attr_parent()
 
+        # Listas para el proceso de limpieza
+        tasks_to_cleanup = []
+
+        # Listas para re-clasificación
         add_str_tag = []
         add_con_tag = []
         add_int_tag = []
         add_per_tag = []
         add_no_attr = []
-        add_str_attr = []
-        add_int_attr = []
 
-        add_per_attr = []
-
-        add_con_attr = []
+        # PASO 1: Identificar tareas que necesitan limpieza
+        parent_tag_ids = {
+            str_tag.id,
+            per_tag.id,
+            int_tag.id,
+            con_tag.id,
+            no_attr_tag.id,
+        }
 
         for task in self.tasks:
-            if (
-                str_tag.id not in task.tags
-                or per_tag.id not in task.tags
-                or int_tag.id not in task.tags
-                or con_tag.id not in task.tags
-            ):
-                for tag in task.tags:
-                    tag_data = self.vault.tags.get_by_id(tag)
-                    log.warning(tag_data.attribute)
-                    if tag_data.attribute == "str":
-                        add_str_tag.append(task.id)
-                    if tag_data.attribute == "con":
-                        add_con_tag.append(task.id)
-                    if tag_data.attribute == "per":
-                        add_per_tag.append(task.id)
-                    if tag_data.attribute == "int":
-                        add_int_tag.append(task.id)
+            has_parent_tags = any(tag_id in parent_tag_ids for tag_id in task.tags)
+            if has_parent_tags:
+                tasks_to_cleanup.append(task.id)
+
+        log.info(f"Found {len(tasks_to_cleanup)} tasks that need cleanup")
+
+        # PASO 2: Analizar clasificación basada en tags hijas
+        for task in self.tasks:
+            task_attribute = None
+            child_tags_found = []
+
+            # Buscar tags hijas para determinar el atributo
+            for tag_id in task.tags:
+                if tag_id not in parent_tag_ids:  # Ignorar parent tags
+                    tag_data = self.vault.tags.get_by_id(tag_id)
+                    if hasattr(tag_data, "attribute") and tag_data.attribute:
+                        child_tags_found.append((
+                            tag_id,
+                            tag_data.attribute,
+                            tag_data.name,
+                        ))
+                        if not task_attribute:  # Usar el primer atributo encontrado
+                            task_attribute = tag_data.attribute
+
+            # Clasificar según el atributo encontrado
+            if task_attribute == "str":
+                add_str_tag.append(task.id)
+            elif task_attribute == "int":
+                add_int_tag.append(task.id)
+            elif task_attribute == "con":
+                add_con_tag.append(task.id)
+            elif task_attribute == "per":
+                add_per_tag.append(task.id)
             else:
-                if str_tag.id in task.tags and task.attribute != "strength":
-                    add_str_attr.append(task.id)
-                if per_tag.id in task.tags and task.attribute != "perception":
-                    add_per_attr.append(task.id)
-                if int_tag.id in task.tags and task.attribute != "intelligence":
-                    add_int_attr.append(task.id)
-                if con_tag.id in task.tags and task.attribute != "constitution":
-                    add_con_attr.append(task.id)
-        for task in self.tasks:
-            if (
-                task.id not in add_con_tag
-                or task.id not in add_int_tag
-                or task.id not in add_per_tag
-                or task.id not in add_str_tag
-                or task.id not in add_con_attr
-                or task.id not in add_int_attr
-                or task.id not in add_str_attr
-                or task.id not in add_per_attr
-            ):
                 add_no_attr.append(task.id)
-        add_total = (
+
+            # Log para debug
+            if child_tags_found:
+                log.info(
+                    f"Task {task.id}: Found child tags: {child_tags_found} -> Attribute: {task_attribute}"
+                )
+            else:
+                log.info(
+                    f"Task {task.id}: No child tags with attributes found -> no_attr"
+                )
+
+        # Mostrar resumen antes de confirmar
+        total_cleanup = len(tasks_to_cleanup)
+        total_retag = (
             len(add_str_tag)
             + len(add_con_tag)
             + len(add_per_tag)
-            + len(add_no_attr)
             + len(add_int_tag)
-            + len(add_per_attr)
-            + len(add_con_attr)
-            + len(add_str_attr)
-            + len(add_int_attr)
+            + len(add_no_attr)
         )
+
+        summary = f"""
+    CLEANUP & RETAG SUMMARY:
+    ========================
+    Tasks to cleanup: {total_cleanup}
+    Tasks to re-tag:
+    - STR: {len(add_str_tag)}
+    - INT: {len(add_int_tag)}
+    - CON: {len(add_con_tag)}
+    - PER: {len(add_per_tag)}
+    - NO_ATTR: {len(add_no_attr)}
+
+    Total operations: {total_cleanup + total_retag}
+    """
+
+        log.info(summary)
+
         confirm = GenericConfirmModal(
-            question=f"You will tag {add_total}. Continue?",
-            title="Batch Tag Tasks",
-            confirm_text="Accept",
+            question=f"CLEANUP {total_cleanup} tasks and RE-TAG {total_retag} tasks?",
+            title="Cleanup & Retag All Tasks",
+            confirm_text="Yes, do it!",
             cancel_text="Cancel",
-            confirm_variant="success",
+            confirm_variant="warning",
             icon=icons.QUESTION,
         )
+
         confirmed = await self.app.push_screen(confirm, wait_for_dismiss=True)
+
         if confirmed:
-            changes = {
-                "tag": {
+            # Ejecutar limpieza y re-etiquetado
+            await self._execute_cleanup_and_retag(
+                tasks_to_cleanup,
+                {
                     "str": add_str_tag,
                     "int": add_int_tag,
                     "con": add_con_tag,
                     "per": add_per_tag,
                     "non": add_no_attr,
                 },
-                "atr": {
-                    "str": add_str_attr,
-                    "int": add_int_attr,
-                    "con": add_con_attr,
-                    "per": add_per_attr,
-                },
-            }
-            await self._tag_tasks_via_api(changes)
+            )
 
-    async def _tag_tasks_via_api(self, changes: dict) -> None:
+    async def _execute_cleanup_and_retag(
+        self, cleanup_tasks: list, retag_data: dict
+    ) -> None:
+        """
+        Ejecuta la limpieza y re-etiquetado
+        """
         try:
-            log.info(f"{icons.RELOAD} Adding/deleting tags via API...")
-            for task_id in changes["tag"]["str"]:
+            str_tag = self.vault.tags.get_str_parent()
+            per_tag = self.vault.tags.get_per_parent()
+            int_tag = self.vault.tags.get_int_parent()
+            con_tag = self.vault.tags.get_con_parent()
+            no_attr_tag = self.vault.tags.get_no_attr_parent()
+
+            parent_tags = [str_tag, per_tag, int_tag, con_tag, no_attr_tag]
+
+            log.info(f"{icons.RELOAD} Starting cleanup process...")
+
+            # PASO 1: LIMPIEZA - Remover todas las parent tags
+            for task_id in cleanup_tasks:
+                for parent_tag in parent_tags:
+                    try:
+                        self.app.habitica_api.remove_tag_from_task(
+                            task_id=task_id,
+                            tag_id_to_remove=parent_tag.id,
+                        )
+                    except Exception as e:
+                        log.warning(
+                            f"Could not remove tag {parent_tag.id} from task {task_id}: {e}"
+                        )
+
+            log.info(f"{icons.CHECK} Cleanup completed. Starting re-tagging...")
+
+            # PASO 2: RE-ETIQUETADO
+            # STR tasks
+            for task_id in retag_data["str"]:
                 self.app.habitica_api.add_tag_to_task(
                     task_id=task_id,
-                    tag_id_to_add=self.vault.tags.get_str_parent().id,
+                    tag_id_to_add=str_tag.id,
                 )
                 self.app.habitica_api.assign_task_attribute(
                     task_id=task_id,
                     task_attribute="str",
                 )
 
-            for task_id in changes["tag"]["int"]:
+            # INT tasks
+            for task_id in retag_data["int"]:
                 self.app.habitica_api.add_tag_to_task(
                     task_id=task_id,
-                    tag_id_to_add=self.vault.tags.get_int_parent().id,
+                    tag_id_to_add=int_tag.id,
                 )
                 self.app.habitica_api.assign_task_attribute(
                     task_id=task_id,
                     task_attribute="int",
                 )
 
-            for task_id in changes["tag"]["per"]:
+            # CON tasks
+            for task_id in retag_data["con"]:
                 self.app.habitica_api.add_tag_to_task(
                     task_id=task_id,
-                    tag_id_to_add=self.vault.tags.get_per_parent().id,
-                )
-                self.app.habitica_api.assign_task_attribute(
-                    task_id=task_id,
-                    task_attribute="per",
-                )
-
-            for task_id in changes["tag"]["con"]:
-                self.app.habitica_api.add_tag_to_task(
-                    task_id=task_id,
-                    tag_id_to_add=self.vault.tags.get_con_parent().id,
+                    tag_id_to_add=con_tag.id,
                 )
                 self.app.habitica_api.assign_task_attribute(
                     task_id=task_id,
                     task_attribute="con",
                 )
 
-            for task_id in changes["tag"]["non"]:
+            # PER tasks
+            for task_id in retag_data["per"]:
                 self.app.habitica_api.add_tag_to_task(
                     task_id=task_id,
-                    tag_id_to_add=self.vault.tags.get_no_attr_parent().id,
+                    tag_id_to_add=per_tag.id,
                 )
-
-            for task_id in changes["atr"]["str"]:
-                self.app.habitica_api.assign_task_attribute(
-                    task_id=task_id,
-                    task_attribute="str",
-                )
-            for task_id in changes["atr"]["con"]:
-                self.app.habitica_api.assign_task_attribute(
-                    task_id=task_id,
-                    task_attribute="con",
-                )
-            for task_id in changes["atr"]["per"]:
                 self.app.habitica_api.assign_task_attribute(
                     task_id=task_id,
                     task_attribute="per",
                 )
-            for task_id in changes["atr"]["int"]:
-                self.app.habitica_api.assign_task_attribute(
+
+            # NO_ATTR tasks
+            for task_id in retag_data["non"]:
+                self.app.habitica_api.add_tag_to_task(
                     task_id=task_id,
-                    task_attribute="int",
+                    tag_id_to_add=no_attr_tag.id,
                 )
-        except Exception as e:
-            log.error(f"{icons.ERROR} Error adding/deleting tag: {e}")
+                # No asignar atributo para estas tareas
+
+            log.info(f"{icons.CHECK} Re-tagging completed successfully!")
             self.notify(
-                f"{icons.ERROR} Failed to add/del tag: {e!s}",
+                f"{icons.CHECK} Cleanup and re-tagging completed!",
+                title="Success",
+                severity="information",
+            )
+
+        except Exception as e:
+            log.error(f"{icons.ERROR} Error during cleanup and retag: {e}")
+            self.notify(
+                f"{icons.ERROR} Failed during cleanup/retag: {e!s}",
                 title="Error",
                 severity="error",
             )
