@@ -316,10 +316,16 @@ SimpleProgressWidget.hidden {
 .controls-row{height:auto;
 margin:1}
 #tasks_list{
+    width: auto;
     height: 80%;
-    border: wide $baby_pink
 }
 
 .task-selected{
     background: $baby_pink ;
 }
+
+.task-item Label{
+    width: 100%
+
+}
+

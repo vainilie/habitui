@@ -205,6 +205,7 @@ def daily_status(
     due_today: bool,
     due_yesterday: bool,
     checklist_progress: float,
+    cron: float,
 ) -> DailyStatus:
     """Calculate the overall status for a daily."""
     completion_status = _get_daily_completion_status(
@@ -214,13 +215,15 @@ def daily_status(
     )
     if completion_status:
         return completion_status
-    if due_yesterday:
+    if cron is True and due_yesterday:
         return DailyStatus.MISSED_YESTERDAY
+
     if due_today:
         return _get_daily_progress_status(checklist_progress)
     if checklist_progress > 0.0:
         return DailyStatus.IN_PROGRESS
-
+    if due_yesterday:
+        return DailyStatus.DUE_YESTERDAY
     return DailyStatus.INACTIVE
 
 

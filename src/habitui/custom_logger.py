@@ -172,8 +172,8 @@ class MinimalLogger:
         logging.basicConfig(handlers=[LoguruHandler()], level=0, force=True)
 
         # Suppress verbose output from third-party libraries
-        for name in ["httpx", "httpcore", "urllib3", "requests", "asyncio"]:
-            logging.getLogger(name).setLevel(logging.WARNING)
+        # for name in ["httpx", "httpcore", "urllib3", "requests", "asyncio"]:
+        # logging.getLogger(name).setLevel(logging.WARNING)
 
 
 # ─── Global Logger Instance and Helper Functions ───────────────────────────────

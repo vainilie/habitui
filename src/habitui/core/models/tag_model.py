@@ -252,7 +252,7 @@ class TagCollection(HabiTuiBaseModel):
 
     tags: list[TagComplex] = Field(default_factory=list)
 
-    def __init__(self, **data: Any):
+    def __init__(self, **data: Any) -> None:
         super().__init__(**data)
         self._build_index()
 

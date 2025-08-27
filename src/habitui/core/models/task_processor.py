@@ -204,6 +204,7 @@ class TaskProcessor:
             due_today=bool(task_data.get("is_due", False)),
             due_yesterday=bool(task_data.get("yester_daily", False)),
             checklist_progress=float(task_data.get("checklist_progress", 0.0)),
+            cron=self.user_vault.user_state.needs_cron,
         )
         return TaskDaily.from_api_dict(data=task_data, user=self.user_vault)
 
