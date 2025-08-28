@@ -1,77 +1,19 @@
 # ♥♥─── Inbox Mixin ──────────────────────────────────────────────────────────────
 from __future__ import annotations
 
-from typing import Any, TypeVar, cast
+from typing import Any, cast
 
-from habitui.core.models import HabiTuiBaseModel
 from habitui.custom_logger import log
-from habitui.core.client.api_models import HabiticaResponse
-
-
-T_ClientPydanticModel = TypeVar("T_ClientPydanticModel", bound=HabiTuiBaseModel)
-SuccessfulResponseData = (
-    dict[str, Any] | list[dict[str, Any]] | list[Any] | HabiticaResponse | None
-)
-
-
-class InboxOperationError(Exception):
-    """Custom exception for failures in inbox/private message operations."""
+from habitui.core.client.api_models import HabiticaResponse, InboxOperationError, T_ClientPydanticModel, SuccessfulResponseData, _validate_not_empty_param, _operation_successful_check
 
 
 class InboxMixin:
     """A mixin class that provides methods for interacting with the Habitica API's inbox."""
 
-    async def get(
-        self,
-        api_endpoint: str,
-        params: dict[str, Any] | None = None,
-        *,
-        parse_to_model: type[T_ClientPydanticModel] | None = None,
-        return_full_response_object: bool = False,
-        **kwargs: Any,
-    ) -> SuccessfulResponseData | T_ClientPydanticModel | HabiticaResponse | None: ...
-    async def post(
-        self,
-        api_endpoint: str,
-        data: Any | None = None,
-        params: dict[str, Any] | None = None,
-        *,
-        parse_to_model: type[T_ClientPydanticModel] | None = None,
-        return_full_response_object: bool = False,
-        **kwargs: Any,
-    ) -> SuccessfulResponseData | T_ClientPydanticModel | HabiticaResponse | None: ...
-    async def delete(
-        self,
-        api_endpoint: str,
-        params: dict[str, Any] | None = None,
-        *,
-        parse_to_model: type[T_ClientPydanticModel] | None = None,
-        return_full_response_object: bool = False,
-        **kwargs: Any,
-    ) -> SuccessfulResponseData | T_ClientPydanticModel | HabiticaResponse | None: ...
-    def _validate_not_empty_param(self, value: str, param_name: str) -> None:
-        """Validate that a given ID string is not empty.
-
-        :param value: The string value to validate.
-        :param param_name: The name of the parameter for error messages.
-        :raises InboxOperationError: If the value is empty.
-        """
-        if not value or not value.strip():
-            e = f"{param_name} cannot be empty."
-            raise InboxOperationError(e)
-
-    def _operation_successful_check(self, api_result: Any) -> bool:
-        """Determine if a simple action (often POST/DELETE with no complex data return) was successful."""
-        if isinstance(api_result, HabiticaResponse):
-            return api_result.success
-        return api_result is None
-
-    async def get_inbox_messages_raw_response(
-        self,
-        *,
-        conversation_id: str | None = None,
-        page_number: int | None = None,
-    ) -> HabiticaResponse:
+    async def get(self, api_endpoint: str, params: dict[str, Any] | None = None, *, parse_to_model: type[T_ClientPydanticModel] | None = None, return_full_response_object: bool = False, **kwargs: Any) -> SuccessfulResponseData | T_ClientPydanticModel | HabiticaResponse | None: ...
+    async def post(self, api_endpoint: str, data: Any | None = None, params: dict[str, Any] | None = None, *, parse_to_model: type[T_ClientPydanticModel] | None = None, return_full_response_object: bool = False, **kwargs: Any) -> SuccessfulResponseData | T_ClientPydanticModel | HabiticaResponse | None: ...
+    async def delete(self, api_endpoint: str, params: dict[str, Any] | None = None, *, parse_to_model: type[T_ClientPydanticModel] | None = None, return_full_response_object: bool = False, **kwargs: Any) -> SuccessfulResponseData | T_ClientPydanticModel | HabiticaResponse | None: ...
+    async def get_inbox_messages_raw_response(self, *, conversation_id: str | None = None, page_number: int | None = None) -> HabiticaResponse:
         """Fetch inbox messages, returning the full HabiticaResponse object.
 
         :param conversation_id: Optional ID to fetch messages for a specific conversation.
@@ -83,22 +25,9 @@ class InboxMixin:
             params["page"] = page_number
         if conversation_id:
             params["conversation"] = conversation_id
+        return cast("HabiticaResponse", await self.get("/inbox/messages", params=params, return_full_response_object=True))
 
-        return cast(
-            "HabiticaResponse",
-            await self.get(
-                "/inbox/messages",
-                params=params,
-                return_full_response_object=True,
-            ),
-        )
-
-    async def get_inbox_messages_data(
-        self,
-        *,
-        conversation_id: str | None = None,
-        page_number: int | None = None,
-    ) -> list[dict[str, Any]]:
+    async def get_inbox_messages_data(self, *, conversation_id: str | None = None, page_number: int | None = None) -> list[dict[str, Any]]:
         """Fetch inbox messages, returning only the 'data' field from the API response.
 
         :param conversation_id: Optional ID to fetch messages for a specific conversation.
@@ -113,19 +42,15 @@ class InboxMixin:
         result = await self.get("/inbox/messages", params=params)
         return cast("list[dict[str, Any]]", result)
 
-    async def send_private_message(
-        self,
-        recipient_user_id: str,
-        message_content: str,
-    ) -> dict[str, Any]:
+    async def send_private_message(self, recipient_user_id: str, message_content: str) -> dict[str, Any]:
         """Send a private message to another user.
 
         :param recipient_user_id: The UUID of the recipient user.
         :param message_content: The text content of the message.
-        :return: A dictionary representing the sent message, or None on failure.
+        :return: A dictionary representing the message, or None on failure.
         :raises InboxOperationError: If recipient ID or message content is empty.
         """
-        self._validate_not_empty_param(recipient_user_id, "Recipient User ID")
+        _validate_not_empty_param(recipient_user_id, "Recipient User ID")
         message_text_stripped = message_content.strip()
         if not message_text_stripped:
             e = "Message content cannot be empty."
@@ -140,7 +65,7 @@ class InboxMixin:
         :return: True if the operation was successful, False otherwise.
         """
         result = await self.post("/user/mark-pms-read")
-        return self._operation_successful_check(result)
+        return _operation_successful_check(result)
 
     async def delete_private_message(self, message_id_to_delete: str) -> bool:
         """Delete a specific private message by its ID.
@@ -149,9 +74,9 @@ class InboxMixin:
         :return: True if the operation was successful, False otherwise.
         :raises InboxOperationError: If message ID is empty.
         """
-        self._validate_not_empty_param(message_id_to_delete, "Message ID")
+        _validate_not_empty_param(message_id_to_delete, "Message ID")
         result = await self.delete(f"/user/messages/{message_id_to_delete}")
-        return self._operation_successful_check(result)
+        return _operation_successful_check(result)
 
     async def like_message(self, message_id_to_like: str) -> bool:
         """Like a specific message (private or group chat).
@@ -162,7 +87,7 @@ class InboxMixin:
         :return: True if the operation was successful, False otherwise.
         :raises InboxOperationError: If message ID is empty.
         """
-        self._validate_not_empty_param(message_id_to_like, "Message ID")
+        _validate_not_empty_param(message_id_to_like, "Message ID")
         log.info("Liking private message: {}", message_id_to_like[:8])
         result = await self.post(f"/inbox/messages/{message_id_to_like}/like")
-        return self._operation_successful_check(result)
+        return _operation_successful_check(result)

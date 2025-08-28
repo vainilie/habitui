@@ -1,16 +1,15 @@
 # ♥♥─── Settings Model ───────────────────────────────────────────────────────────
 from __future__ import annotations
 
-from uuid import UUID as TYPE_UUID
-from typing import Any, Self
-from pathlib import Path
 from functools import lru_cache
+from pathlib import Path
+from typing import Any, Self
+from uuid import UUID as TYPE_UUID
 
-from pydantic import Field, SecretStr, computed_field, field_validator, model_validator
+from pydantic import Field, SecretStr, computed_field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from habitui.custom_logger import log
-
 
 DUMMY_UUID = TYPE_UUID("00000000-0000-0000-0000-000000000000")
 DUMMY_TOKEN = SecretStr("deadbeef-dead-4bad-beef-deadbeef0000")
@@ -149,7 +148,6 @@ class HabiticaApiSettings(BaseSettings):
 		examples=["87654321-4321-8765-2109-876543210987"],
 	)
 
-	@field_validator("api_token")
 	@classmethod
 	def validate_api_token_uuid(cls, v: SecretStr | None) -> SecretStr | None:
 		"""Validate that api_token is a valid UUID format."""
@@ -352,16 +350,6 @@ class TagSettings(BaseSettings):
 		examples=["str", "int", "con", "per"],
 	)
 
-	@field_validator(
-		"id_attr_str",
-		"id_attr_int",
-		"id_attr_con",
-		"id_attr_per",
-		"id_no_attr",
-		"id_legacy",
-		"id_challenge",
-		"id_personal",
-	)
 	@classmethod
 	def validate_tag_id_uuid(cls, v: str | TYPE_UUID | None) -> TYPE_UUID | None:
 		"""Validate that tag IDs are valid UUID format when provided.
@@ -383,10 +371,7 @@ class TagSettings(BaseSettings):
 			except ValueError as e:
 				msg = "Tag ID must be a valid UUID format"
 				raise ValueError(msg) from e
-		msg = f"Unsupported type for UUID field: {type(v).__name__}"
-		raise TypeError(msg)
 
-	@field_validator("default_attr")
 	@classmethod
 	def validate_default_attr(cls, v: str | None) -> str | None:
 		"""Validate that default_attr is one of: str, int, con, per."""
@@ -598,8 +583,8 @@ class ApplicationSettings(BaseSettings):
 	def _normalize_properties(props: dict[str, Any]) -> dict[str, Any]:
 		"""Normalize properties by resolving 'anyOf' for friendly schema.
 
-		:param props: The properties dictionary.
-		:return: The normalized properties dictionary.
+		:param props: The properties' dictionary.
+		:return: The normalized properties' dictionary.
 		"""
 		result = {}
 		for prop_name, prop_data in props.items():

@@ -21,7 +21,6 @@ from .validators import PydanticJSON, replace_emoji_shortcodes
 
 
 T_ContentItem = TypeVar("T_ContentItem", bound="GameContentItem")
-
 SuccessfulResponseData = dict[str, Any] | list[dict[str, Any]] | list[Any] | None
 
 
@@ -52,11 +51,7 @@ class GameContentItem(HabiTuiSQLModel, ABC):
 
     @classmethod
     @abstractmethod
-    def from_api_box(
-        cls: type[T_ContentItem],
-        *args: Any,
-        **kwargs: Any,
-    ) -> T_ContentItem:
+    def from_api_box(cls: type[T_ContentItem], *args: Any, **kwargs: Any) -> T_ContentItem:
         """Abstract factory method to create an instance from an API data box.
 
         :param args: Positional arguments for the factory method.
@@ -82,7 +77,6 @@ class GearItem(GameContentItem, table=True):
     """
 
     __tablename__ = "gear_item"  # type: ignore
-
     klass: str
     type: str
     special_class: str | None = None
@@ -135,7 +129,6 @@ class SpellItem(GameContentItem, table=True):
     """
 
     __tablename__ = "spell_item"  # type: ignore
-
     klass: str
     mana: int
     target: str
@@ -205,11 +198,11 @@ class QuestItem(GameContentItem, table=True):
     :param rage_seasonal_shop: Seasonal shop effect from rage.
     :param rage_tavern: Tavern effect from rage.
     :param rage_guide: Guide effect from rage.
-    :param has_desesperation: True if the boss has a desperation mechanic.
-    :param desesperation_def: Desperation defense.
-    :param desesperation_str: Desperation strength.
-    :param desesperation_text: Desperation text.
-    :param desesperation_threshold: Desperation threshold.
+    :param has_desperation: True if the boss has a desperation mechanic.
+    :param desperation_def: Desperation defense.
+    :param desperation_str: Desperation strength.
+    :param desperation_text: Desperation text.
+    :param desperation_threshold: Desperation threshold.
     :param drop_exp: Experience from drops.
     :param drop_gp: Gold from drops.
     :param drop_items: Items from drops.
@@ -218,7 +211,6 @@ class QuestItem(GameContentItem, table=True):
     """
 
     __tablename__ = "quest_item"  # type: ignore
-
     value: int = 0
     category: str
     completion: str
@@ -246,24 +238,16 @@ class QuestItem(GameContentItem, table=True):
     rage_seasonal_shop: str | None = None
     rage_tavern: str | None = None
     rage_guide: str | None = None
-
-    has_desesperation: bool = False
-    desesperation_def: int | None = None
-    desesperation_str: float | None = None
-    desesperation_text: str | None = None
-    desesperation_threshold: int | None = None
-
+    has_desperation: bool = False
+    desperation_def: int | None = None
+    desperation_str: float | None = None
+    desperation_text: str | None = None
+    desperation_threshold: int | None = None
     drop_exp: float | None = None
     drop_gp: float | None = None
-    drop_items: list[dict[str, Any]] = Field(
-        default_factory=list,
-        sa_column=Column(PydanticJSON),
-    )
+    drop_items: list[dict[str, Any]] = Field(default_factory=list, sa_column=Column(PydanticJSON))
     has_collect: bool = False
-    collect_items: list[dict[str, Any]] | None = Field(
-        None,
-        sa_column=Column(PydanticJSON),
-    )
+    collect_items: list[dict[str, Any]] | None = Field(None, sa_column=Column(PydanticJSON))
 
     @classmethod
     def from_api_box(cls, key: str, data: Box) -> QuestItem:
@@ -273,28 +257,9 @@ class QuestItem(GameContentItem, table=True):
         :param data: The raw API data as a Box object.
         :returns: A QuestItem instance.
         """
-        flat_data: dict[str, Any] = {
-            "key": key,
-            "id": key,
-            "text": data.text,
-            "notes": data.notes,
-            "value": data.value or 0,
-            "category": data.category,
-            "completion": data.completion,
-            "gold_value": data.gold_value or 0,
-            "addl_notes": data.addl_notes,
-            "completion_chat": data.completion_chat,
-            "lvl": data.lvl or 0,
-        }
-
+        flat_data: dict[str, Any] = {"key": key, "id": key, "text": data.text, "notes": data.notes, "value": data.value or 0, "category": data.category, "completion": data.completion, "gold_value": data.gold_value or 0, "addl_notes": data.addl_notes, "completion_chat": data.completion_chat, "lvl": data.lvl or 0}
         if boss := data.boss:
-            flat_data.update({
-                "is_boss_quest": True,
-                "boss_name": boss.name,
-                "boss_hp": boss.hp or 0,
-                "boss_str": boss.get("str", 0.0),
-                "boss_def": boss.get("def", 0),
-            })
+            flat_data.update({"is_boss_quest": True, "boss_name": boss.name, "boss_hp": boss.hp or 0, "boss_str": boss.get("str", 0.0), "boss_def": boss.get("def", 0)})
             if rage := boss.rage:
                 flat_data.update({
                     "has_rage": True,
@@ -313,29 +278,13 @@ class QuestItem(GameContentItem, table=True):
                     "rage_tavern": rage.tavern,
                     "rage_guide": rage.guide,
                 })
-            if desp := boss.desesperation:
-                flat_data.update({
-                    "has_desesperation": True,
-                    "desesperation_def": desp.get("def", 0),
-                    "desesperation_str": desp.get("str", 0.0),
-                    "desesperation_text": desp.text,
-                    "desesperation_threshold": desp.threshold or 0,
-                })
-
+            if desp := boss.desperation:
+                flat_data.update({"has_desperation": True, "desperation_def": desp.get("def", 0), "desperation_str": desp.get("str", 0.0), "desperation_text": desp.text, "desperation_threshold": desp.threshold or 0})
         if drop := data.drop:
-            flat_data.update({
-                "drop_exp": float(drop.exp or 0),
-                "drop_gp": float(drop.gp or 0),
-                "drop_items": drop["items"] or [],
-            })
-
+            flat_data.update({"drop_exp": float(drop.exp or 0), "drop_gp": float(drop.gp or 0), "drop_items": drop["items"] or []})
         if collect := data.collect:
             flat_data["has_collect"] = True
-            flat_data["collect_items"] = [
-                {"key": k, "text": v.text, "count": v.count or 0}
-                for k, v in collect.items()
-            ]
-
+            flat_data["collect_items"] = [{"key": k, "text": v.text, "count": v.count or 0} for k, v in collect.items()]
         return cls.model_validate(flat_data)
 
 
@@ -359,24 +308,11 @@ class ContentCollection(HabiTuiBaseModel):
         :param raw_content: The raw content data from the API.
         :returns: A populated ContentCollection instance.
         """
-        api_box = Box(
-            raw_content,
-            default_box=True,
-            camel_killer_box=True,
-            default_box_attr=None,
-        )
-        return cls(
-            gear=cls._parse_content_items(api_box.gear.flat, GearItem, "gear"),
-            quests=cls._parse_content_items(api_box.quests, QuestItem, "quest"),
-            spells=cls._parse_spells(api_box.spells),
-        )
+        api_box = Box(raw_content, default_box=True, camel_killer_box=True, default_box_attr=None)
+        return cls(gear=cls._parse_content_items(api_box.gear.flat, GearItem, "gear"), quests=cls._parse_content_items(api_box.quests, QuestItem, "quest"), spells=cls._parse_spells(api_box.spells))
 
     @staticmethod
-    def _parse_content_items(
-        box_data: Box,
-        model_cls: type[T_ContentItem],
-        type_name: str,
-    ) -> dict[str, T_ContentItem]:
+    def _parse_content_items(box_data: Box, model_cls: type[T_ContentItem], type_name: str) -> dict[str, T_ContentItem]:
         """Parse simple key-value content items.
 
         :param box_data: Box object containing the raw data.
@@ -403,27 +339,18 @@ class ContentCollection(HabiTuiBaseModel):
         for class_key, class_spells in spells_box.items():
             for spell_key, spell_data in class_spells.items():
                 try:
-                    parsed_spells[spell_key] = SpellItem.from_api_box(
-                        spell_key,
-                        class_key,
-                        spell_data,
-                    )
+                    parsed_spells[spell_key] = SpellItem.from_api_box(spell_key, class_key, spell_data)
                 except (ValidationError, TypeError, ValueError) as e:
-                    log.warning(
-                        "Failed to parse spell '{}' (class {}): {}",
-                        spell_key,
-                        class_key,
-                        e,
-                    )
+                    log.warning("Failed to parse spell '{}' (class {}): {}", spell_key, class_key, e)
         return parsed_spells
 
-    def get_quest(self, key: str) -> QuestItem:
+    def get_quest(self, key: str) -> QuestItem | None:
         """Retrieve a quest by its key.
 
         :param key: The key of the quest.
         :returns: The `QuestItem` or None if not found.
         """
-        return self.quests.get(key)  # pyright: ignore[reportReturnType]
+        return self.quests.get(key)
 
     def get_gear(self, key: str) -> GearItem | None:
         """Retrieve a gear item by its key.
@@ -447,6 +374,4 @@ class ContentCollection(HabiTuiBaseModel):
         :param character_class: The character class (e.g., "warrior").
         :returns: A list of `SpellItem` instances.
         """
-        return [
-            spell for spell in self.spells.values() if spell.klass == character_class
-        ]
+        return [spell for spell in self.spells.values() if spell.klass == character_class]

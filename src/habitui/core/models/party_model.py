@@ -1,5 +1,4 @@
 # ♥♥─── HabiTui Party Models ───────────────────────────────────────────────────
-
 from __future__ import annotations
 
 from typing import Any
@@ -16,9 +15,6 @@ from .message_model import PartyMessage as PartyChat
 # ─── Party Info ───────────────────────────────────────────────────────────────
 class PartyInfo(HabiTuiSQLModel, table=True):
     """Represent a Habitica Party group and its details.
-
-    Fields are self-explanatory from their names. Data is flattened
-    from the nested API response during validation.
 
     :param name: The name of the party.
     :param description: Description of the party.
@@ -46,7 +42,6 @@ class PartyInfo(HabiTuiSQLModel, table=True):
     """
 
     __tablename__ = "party_info"  # type: ignore
-
     name: str
     description: str | None = None
     summary: str | None = None
@@ -55,28 +50,17 @@ class PartyInfo(HabiTuiSQLModel, table=True):
     balance: int = 0
     challenge_count: int = 0
     member_count: int = 0
-
     has_leader: bool = False
     leader_username: str | None = None
     leader_id: str | None = None
     leader_name: str | None = None
-
     has_quest: bool = False
     quest_key: str | None = None
     quest_active: bool = False
     quest_leader: str | None = None
-    quest_members: dict[str, bool] = Field(
-        default_factory=dict,
-        sa_column=Column(PydanticJSON),
-    )
-    quest_collect: dict[str, Any] = Field(
-        default_factory=dict,
-        sa_column=Column(PydanticJSON),
-    )
-    quest_collected_items: Any = Field(
-        default_factory=dict,
-        sa_column=Column(PydanticJSON),
-    )
+    quest_members: dict[str, bool] = Field(default_factory=dict, sa_column=Column(PydanticJSON))
+    quest_collect: dict[str, Any] = Field(default_factory=dict, sa_column=Column(PydanticJSON))
+    quest_collected_items: Any = Field(default_factory=dict, sa_column=Column(PydanticJSON))
     quest_rage: float | None = None
     quest_hp: float | None = None
     quest_up: float | None = None
@@ -90,23 +74,16 @@ class PartyInfo(HabiTuiSQLModel, table=True):
         :param data: The raw API data for the party.
         :returns: A dictionary with flattened and cleaned data.
         """
-        data_box = (
-            data
-            if isinstance(data, Box)
-            else Box(data, camel_killer_box=True, default_box=True)
-        )
-
+        data_box = data if isinstance(data, Box) else Box(data, camel_killer_box=True, default_box=True)
         data_box["name"] = replace_emoji_shortcodes(data_box.name)
         data_box["description"] = replace_emoji_shortcodes(data_box.description)
         data_box["summary"] = replace_emoji_shortcodes(data_box.summary)
-
         if leader := data_box.leader:
             data_box["has_leader"] = True
             data_box["leader_id"] = leader.id
             data_box["leader_name"] = replace_emoji_shortcodes(leader.profile.name)
             if local_auth := leader.auth.get("local"):
                 data_box["leader_username"] = local_auth.username
-
         if quest := data_box.quest:
             data_box["has_quest"] = True
             data_box["quest_key"] = quest.key or None
@@ -142,10 +119,7 @@ class PartyCollection(HabiTuiBaseModel):
         :returns: A populated PartyCollection instance.
         """
         info = PartyInfo.model_validate(raw_content)
-        chat = [
-            PartyChat.from_api_dict(data=chat_data, position=i)
-            for i, chat_data in enumerate(raw_content.get("chat", []))
-        ]
+        chat = [PartyChat.from_api_dict(data=chat_data, position=i) for i, chat_data in enumerate(raw_content.get("chat", []))]
         return cls(party_chat=chat, party_info=info)
 
     def get_chat_messages(self) -> list[PartyChat] | None:
@@ -171,7 +145,7 @@ class PartyCollection(HabiTuiBaseModel):
         """
         system_messages = []
         for msg in self.party_chat:
-            if msg.by_system is True:
+            if msg.by_system:
                 system_messages.append(msg)
                 if from_quest_start and msg.info_type == "quest_start":
                     break
@@ -195,7 +169,6 @@ class PartyCollection(HabiTuiBaseModel):
             "leader_id": self.party_info.leader_id or "",
             "has_quest": self.party_info.has_quest,
         }
-
         if self.party_info.has_quest:
             members = sum(self.party_info.quest_members.values())
             data.update({
@@ -210,5 +183,4 @@ class PartyCollection(HabiTuiBaseModel):
                 "quest_up": self.party_info.quest_up or 0,
                 "quest_down": self.party_info.quest_down or 0,
             })
-
         return data

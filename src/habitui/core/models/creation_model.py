@@ -3,7 +3,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Annotated
+from typing import TYPE_CHECKING, Any
 
 from pydantic import Field, field_validator
 
@@ -173,10 +173,7 @@ class RewardCreate(TaskBaseCreate):
     value: float = Field(0.0, ge=0)
 
 
-TaskCreatePayload = Annotated[
-    HabitCreate | DailyCreate | TodoCreate | RewardCreate,
-    Field(discriminator="type"),
-]
+TaskCreatePayload = HabitCreate | DailyCreate | TodoCreate | RewardCreate
 
 
 class ChallengeCreate(HabiTuiBaseModel):

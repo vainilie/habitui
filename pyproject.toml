@@ -41,11 +41,11 @@ dev-dependencies = [
 habitui = "habitui.main:main"
 
 [tool.black]
-line-length = 99
+line-length = 320
 target-version = ["py313"]
 
 [tool.ruff]
-line-length = 88
+line-length = 320
 target-version = "py313"
 src = ["src"]
 preview = true
@@ -55,7 +55,7 @@ indent-width = 4
 
 [tool.ruff.format]
 docstring-code-format = true
-docstring-code-line-length = 120
+docstring-code-line-length = 320
 indent-style = "space"
 line-ending = "auto"
 preview = true
@@ -99,8 +99,8 @@ ignore = [
 "tests/*" = ["S101"]
 
 [tool.ruff.lint.pycodestyle]
-max-doc-length = 120
-max-line-length = 150
+max-doc-length = 320
+max-line-length = 320
 
 [tool.ruff.lint.pydocstyle]
 convention = "numpy"

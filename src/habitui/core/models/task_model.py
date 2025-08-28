@@ -1,10 +1,10 @@
 # ♥♥─── HabiTui Task Models ────────────────────────────────────────────────────
-
 from __future__ import annotations
 
 import uuid
 from typing import TYPE_CHECKING, Any, Literal, cast
 from datetime import date, datetime
+import operator
 
 from pydantic import PrivateAttr, field_validator
 from sqlmodel import Field, Column
@@ -12,22 +12,9 @@ from sqlmodel import Field, Column
 from habitui.utils import DateTimeHandler
 from habitui.custom_logger import log
 
-from .base_enums import (
-    Frequency,
-    TaskStatus,
-    TodoStatus,
-    DailyStatus,
-    HabitStatus,
-    RewardStatus,
-)
+from .base_enums import Frequency, TaskStatus, TodoStatus, DailyStatus, HabitStatus, RewardStatus
 from .base_model import HabiTuiSQLModel, HabiTuiBaseModel
-from .validators import (
-    PydanticJSON,
-    habit_status,
-    normalize_attribute,
-    calculate_task_damage,
-    replace_emoji_shortcodes,
-)
+from .validators import PydanticJSON, habit_status, normalize_attribute, calculate_task_damage, replace_emoji_shortcodes
 
 
 if TYPE_CHECKING:
@@ -36,8 +23,6 @@ if TYPE_CHECKING:
     from box import Box
 
     from .user_model import UserCollection
-
-
 SuccessfulResponseData = dict[str, Any] | list[dict[str, Any]] | list[Any] | None
 
 
@@ -46,16 +31,12 @@ class ChallengeInTask(HabiTuiSQLModel, table=True):
     """Represent a challenge linked to a task."""
 
     __tablename__ = "challenge_in_task"  # type: ignore
-
     id: str = Field(alias="id", primary_key=True)
     short_name: str
     broken: bool
     winner: str | None
     tasks_ids: list[str] = Field(default_factory=list, sa_column=Column(PydanticJSON))
-    broken_tasks_ids: list[str] = Field(
-        default_factory=list,
-        sa_column=Column(PydanticJSON),
-    )
+    broken_tasks_ids: list[str] = Field(default_factory=list, sa_column=Column(PydanticJSON))
 
 
 # ─── TaskChecklist ──────────────────────────────────────────────────────────────────
@@ -97,7 +78,6 @@ class TaskReward(HabiTuiSQLModel, table=True):
     """Reward task model."""
 
     __tablename__ = "task_reward"  # type: ignore
-
     type: str = Field(default="Reward")
     status: RewardStatus = Field(default=RewardStatus.UNAFFORDABLE)
     text: str = Field(index=True)
@@ -116,10 +96,7 @@ class TaskReward(HabiTuiSQLModel, table=True):
     challenge_broken: bool = Field(default=False)
     challenge_winner: str | None = Field(default=None)
     alias: str | None = Field(default=None)
-    reminders: list[dict[str, Any]] = Field(
-        default_factory=list,
-        sa_column=Column(PydanticJSON),
-    )
+    reminders: list[dict[str, Any]] = Field(default_factory=list, sa_column=Column(PydanticJSON))
     tags: list[str] = Field(default_factory=list, sa_column=Column(PydanticJSON))
 
     @field_validator("text", "notes", "challenge_shortname", mode="before")
@@ -148,7 +125,6 @@ class TaskHabit(HabiTuiSQLModel, table=True):
     """Habit task model with flattened structure."""
 
     __tablename__ = "task_habit"  # type: ignore
-
     type: str = Field(default="Habit")
     status: HabitStatus = Field(default=HabitStatus.NEGLECTED)
     text: str = Field(index=True)
@@ -172,14 +148,8 @@ class TaskHabit(HabiTuiSQLModel, table=True):
     counter_up: int = Field(default=0)
     counter_down: int = Field(default=0)
     frequency: Frequency = Field(default=Frequency.WEEKLY)
-    history: list[dict[str, Any]] = Field(
-        default_factory=list,
-        sa_column=Column(PydanticJSON),
-    )
-    reminders: list[dict[str, Any]] = Field(
-        default_factory=list,
-        sa_column=Column(PydanticJSON),
-    )
+    history: list[dict[str, Any]] = Field(default_factory=list, sa_column=Column(PydanticJSON))
+    reminders: list[dict[str, Any]] = Field(default_factory=list, sa_column=Column(PydanticJSON))
     tags: list[str] = Field(default_factory=list, sa_column=Column(PydanticJSON))
 
     @field_validator("text", "notes", "challenge_shortname", mode="before")
@@ -208,7 +178,6 @@ class TaskTodo(HabiTuiSQLModel, table=True):
     """Todo task model with flattened checklist data."""
 
     __tablename__ = "task_todo"  # type: ignore
-
     type: str = Field(default="Todo")
     status: TodoStatus = Field(default=TodoStatus.SOMEDAY)
     text: str = Field(index=True)
@@ -234,10 +203,7 @@ class TaskTodo(HabiTuiSQLModel, table=True):
     checklist_progress: float = Field(default=0.0)
     checklist_percentage: int = Field(default=0)
     checklist: list[str] = Field(default_factory=list, sa_column=Column(PydanticJSON))
-    reminders: list[dict[str, Any]] = Field(
-        default_factory=list,
-        sa_column=Column(PydanticJSON),
-    )
+    reminders: list[dict[str, Any]] = Field(default_factory=list, sa_column=Column(PydanticJSON))
     tags: list[str] = Field(default_factory=list, sa_column=Column(PydanticJSON))
 
     @field_validator("text", "notes", "challenge_shortname", mode="before")
@@ -298,21 +264,12 @@ class TaskDaily(HabiTuiSQLModel, table=True):
     party_damage: float = Field(default=0.0)
     is_active: bool = Field(default=True)
     repeat_days: list[int] = Field(default_factory=list, sa_column=Column(PydanticJSON))
-    repeat_weeks: list[int] = Field(
-        default_factory=list,
-        sa_column=Column(PydanticJSON),
-    )
+    repeat_weeks: list[int] = Field(default_factory=list, sa_column=Column(PydanticJSON))
     next_due: list[str] = Field(default_factory=list, sa_column=Column(PydanticJSON))
     weekdays: list[str] = Field(default_factory=list, sa_column=Column(PydanticJSON))
     checklist: list[str] = Field(default_factory=list, sa_column=Column(PydanticJSON))
-    history: list[dict[str, Any]] = Field(
-        default_factory=list,
-        sa_column=Column(PydanticJSON),
-    )
-    reminders: list[dict[str, Any]] = Field(
-        default_factory=list,
-        sa_column=Column(PydanticJSON),
-    )
+    history: list[dict[str, Any]] = Field(default_factory=list, sa_column=Column(PydanticJSON))
+    reminders: list[dict[str, Any]] = Field(default_factory=list, sa_column=Column(PydanticJSON))
     tags: list[str] = Field(default_factory=list, sa_column=Column(PydanticJSON))
 
     @field_validator("text", "notes", "challenge_shortname", mode="before")
@@ -349,8 +306,6 @@ class TaskDaily(HabiTuiSQLModel, table=True):
     def from_api_dict(cls, data: Box, user: UserCollection) -> TaskDaily:
         """Create a TaskDaily instance from API data.
 
-        Calculates potential HP damage to user and damage to quest boss.
-
         :param data: The raw API data for the daily task.
         :param user: The user's data collection for context-aware parsing.
         :returns: A `TaskDaily` instance.
@@ -358,14 +313,12 @@ class TaskDaily(HabiTuiSQLModel, table=True):
         calculate_task_damage(data, user)
         if not data.next_due and not data.is_due and not data.yester_daily:
             data.is_active = False
-
         data.due_today = bool(data.is_due)
         data.due_yesterday = bool(data.yester_daily)
         data.weekdays = [k for k, v in data.get("repeat", {}).items() if v]
         data.repetition_interval = data.every_x
         data.repeat_days = data.days_of_month
         data.repeat_weeks = data.weeks_of_month
-
         return cls.model_validate({**data.to_dict()})
 
 
@@ -401,11 +354,7 @@ class TaskCollection(HabiTuiBaseModel):
 
     # --- Class Methods ---
     @classmethod
-    def from_api_data(
-        cls,
-        raw_content: SuccessfulResponseData,
-        user_vault: UserCollection,
-    ) -> TaskCollection:
+    def from_api_data(cls, raw_content: SuccessfulResponseData, user_vault: UserCollection) -> TaskCollection:
         """Parse the raw API response and creates a TaskCollection instance.
 
         :param raw_content: The complete content data from the API.
@@ -435,8 +384,6 @@ class TaskCollection(HabiTuiBaseModel):
             self.habits.append(task)
         elif isinstance(task, TaskReward):
             self.rewards.append(task)
-        else:
-            log.warning("Attempted to add unknown task type: {}", type(task).__name__)
 
     def delete_task(self, task_id: str) -> AnyTask | None:
         """Delete a task by its ID from the collection.
@@ -448,15 +395,9 @@ class TaskCollection(HabiTuiBaseModel):
             for i, task in enumerate(task_list):
                 if task.id == task_id:
                     deleted_task = task_list.pop(i)  # noqa: B909
-                    if (
-                        isinstance(deleted_task, (TaskTodo, TaskDaily))
-                        and hasattr(deleted_task, "checklist")
-                        and deleted_task.checklist
-                    ):
+                    if isinstance(deleted_task, (TaskTodo, TaskDaily)) and hasattr(deleted_task, "checklist") and deleted_task.checklist:
                         checklist_ids = set(deleted_task.checklist)
-                        self.subtasks = [
-                            sub for sub in self.subtasks if sub.id not in checklist_ids
-                        ]
+                        self.subtasks = [sub for sub in self.subtasks if sub.id not in checklist_ids]
                     log.info("Task with ID '{}' deleted successfully.", task_id)
                     return deleted_task
         log.warning("Task with ID '{}' not found for deletion.", task_id)
@@ -464,8 +405,6 @@ class TaskCollection(HabiTuiBaseModel):
 
     def modify_task(self, task_id: str, updates: dict[str, Any]) -> AnyTask | None:
         """Modify a task's attributes.
-
-        Finds a task by ID and updates it with the provided data.
 
         :param task_id: The UUID of the task to modify.
         :param updates: A dictionary of attributes to update.
@@ -483,9 +422,6 @@ class TaskCollection(HabiTuiBaseModel):
     def score_task(self, task_id: str, direction: str = "up") -> AnyTask | None:
         """Simulate scoring a task, updating its local state.
 
-        - For **Todos** and **Dailies**: Marks them as complete.
-        - For **Habits**: Increments the 'up' or 'down' counter.
-
         :param task_id: The ID of the task to score.
         :param direction: The direction to score ('up' or 'down'). Only applies to habits.
         :returns: The updated task, or None if not found.
@@ -495,7 +431,6 @@ class TaskCollection(HabiTuiBaseModel):
         if not task:
             log.warning("Task with ID '{}' not found for scoring.", task_id)
             return None
-
         updates: dict[str, Any] = {}
         if isinstance(task, TaskTodo):
             updates["completed"] = True
@@ -509,25 +444,13 @@ class TaskCollection(HabiTuiBaseModel):
             elif direction == "down" and task.down:
                 updates["counter_down"] = task.counter_down + 1
             else:
-                log.info(
-                    "No change for habit '{}' with direction '{}' (up: {}, down: {}).",
-                    task_id,
-                    direction,
-                    task.up,
-                    task.down,
-                )
+                log.info("No change for habit '{}' with direction '{}' (up: {}, down: {}).", task_id, direction, task.up, task.down)
                 return task  # No change if direction is invalid for the habit
-
-            updates["status"] = habit_status(
-                updates.get("counter_up", task.counter_up) > task.counter_up,
-                updates.get("counter_down", task.counter_down) > task.counter_down,
-                task.value,
-            )
+            updates["status"] = habit_status(updates.get("counter_up", task.counter_up) > task.counter_up, updates.get("counter_down", task.counter_down) > task.counter_down, task.value)
         elif isinstance(task, TaskReward):
             msg = "Rewards cannot be 'scored'. They are purchased."
             log.error("{}", msg)
             raise TypeError(msg)
-
         log.info("Task with ID '{}' scored successfully.", task_id)
         return self.modify_task(task_id, updates)
 
@@ -545,11 +468,7 @@ class TaskCollection(HabiTuiBaseModel):
         :param status: The status to filter by.
         :returns: A list of matching tasks.
         """
-        return [
-            task
-            for task in self.all_tasks
-            if hasattr(task, "status") and task.status == status
-        ]
+        return [task for task in self.all_tasks if hasattr(task, "status") and task.status == status]
 
     def get_tasks_by_challenge_id(self, challenge_id: str) -> list[AnyTask]:
         """Get all tasks associated with a given challenge ID.
@@ -559,11 +478,7 @@ class TaskCollection(HabiTuiBaseModel):
         """
         return [task for task in self.all_tasks if task.challenge_id == challenge_id]
 
-    def get_tasks_by_broken_status(
-        self,
-        is_task_broken: bool | None = None,
-        is_challenge_broken: bool | None = None,
-    ) -> list[AnyTask]:
+    def get_tasks_by_broken_status(self, is_task_broken: bool | None = None, is_challenge_broken: bool | None = None) -> list[AnyTask]:
         """Get tasks by their broken status.
 
         :param is_task_broken: Filter by tasks that are individually broken.
@@ -583,20 +498,8 @@ class TaskCollection(HabiTuiBaseModel):
         :param due_date: The date to check for.
         :returns: A list of Todos and Dailies due on that date.
         """
-        due_todos = [
-            todo
-            for todo in self.todos
-            if todo.due_date and todo.due_date.date() == due_date
-        ]
-        due_dailies = [
-            daily
-            for daily in self.dailys
-            if any(
-                DateTimeHandler(timestamp=d).local_datetime
-                and DateTimeHandler(timestamp=d).local_datetime == due_date
-                for d in daily.next_due
-            )
-        ]
+        due_todos = [todo for todo in self.todos if todo.due_date and todo.due_date.date() == due_date]
+        due_dailies = [daily for daily in self.dailys if any(DateTimeHandler(timestamp=d).local_datetime and DateTimeHandler(timestamp=d).local_datetime == due_date for d in daily.next_due)]
         return due_todos + due_dailies
 
     def get_overdue_todos(self) -> list[TaskTodo]:
@@ -611,9 +514,7 @@ class TaskCollection(HabiTuiBaseModel):
 
         :returns: A list of due and incomplete daily tasks.
         """
-        return [
-            daily for daily in self.dailys if daily.due_today and not daily.completed
-        ]
+        return [daily for daily in self.dailys if daily.due_today and not daily.completed]
 
     def get_owned_tasks(self) -> list[AnyTask]:
         return [task for task in self.all_tasks if task.challenge is False]
@@ -627,16 +528,9 @@ class TaskCollection(HabiTuiBaseModel):
         :param task_ids: A list of task IDs to delete.
         :returns: A list of the deleted task instances.
         """
-        return [
-            deleted_task
-            for task_id in task_ids
-            if (deleted_task := self.delete_task(task_id))
-        ]
+        return [deleted_task for task_id in task_ids if (deleted_task := self.delete_task(task_id))]
 
-    def update_multiple_tasks(
-        self,
-        updates: dict[str, dict[str, Any]],
-    ) -> list[AnyTask]:
+    def update_multiple_tasks(self, updates: dict[str, dict[str, Any]]) -> list[AnyTask]:
         """Update multiple tasks at once.
 
         :param updates: A dictionary where keys are task IDs and values are dictionaries of updates.
@@ -648,12 +542,7 @@ class TaskCollection(HabiTuiBaseModel):
                 updated_tasks.append(updated_task)
         return updated_tasks
 
-    def add_checklist_item(
-        self,
-        task_id: str,
-        text: str,
-        completed: bool = False,
-    ) -> tuple[TaskChecklist | None, AnyTask | None] | None:
+    def add_checklist_item(self, task_id: str, text: str, completed: bool = False) -> tuple[TaskChecklist | None, AnyTask | None] | None:
         """Add a new subtask (checklist item) to a Todo or Daily.
 
         :param task_id: The ID of the parent task (must be a Todo or Daily).
@@ -663,52 +552,24 @@ class TaskCollection(HabiTuiBaseModel):
         """
         parent_task = self.get_task_by_id(task_id)
         if not isinstance(parent_task, (TaskTodo, TaskDaily)):
-            log.warning(
-                "Task {} is not a Todo or Daily; cannot add checklist.",
-                task_id,
-            )
+            log.warning("Task {} is not a Todo or Daily; cannot add checklist.", task_id)
             return None
-
         # Determine the position for the new subtask
         position = parent_task.checklist_total + 1
-
-        new_subtask = TaskChecklist(
-            id=str(uuid.uuid4()),
-            text=text,
-            completed=completed,
-            parent_task_id=task_id,
-            status=TaskStatus.COMPLETED if completed else TaskStatus.AVAILABLE,
-            position=position,
-        )
+        new_subtask = TaskChecklist(id=str(uuid.uuid4()), text=text, completed=completed, parent_task_id=task_id, status=TaskStatus.COMPLETED if completed else TaskStatus.AVAILABLE, position=position)
         self.subtasks.append(new_subtask)
-
         # Recalculate parent task checklist stats
         total = parent_task.checklist_total + 1
         completed_count = parent_task.checklist_completed + (1 if completed else 0)
         progress = completed_count / total if total > 0 else 0.0
-
-        updates: dict[str, Any] = {
-            "checklist": [*parent_task.checklist, new_subtask.id],
-            "checklist_total": total,
-            "checklist_completed": completed_count,
-            "checklist_progress": progress,
-        }
+        updates: dict[str, Any] = {"checklist": [*parent_task.checklist, new_subtask.id], "checklist_total": total, "checklist_completed": completed_count, "checklist_progress": progress}
         if isinstance(parent_task, TaskTodo):
             updates["checklist_percentage"] = int(progress * 100)
-
         updated_parent = self.modify_task(task_id, updates)
-        log.info(
-            "Added checklist item to task '{}'. New item ID: '{}'",
-            task_id,
-            new_subtask.id,
-        )
+        log.info("Added checklist item to task '{}'. New item ID: '{}'", task_id, new_subtask.id)
         return new_subtask, updated_parent
 
-    def update_checklist_item(
-        self,
-        subtask_id: str,
-        updates: dict[str, Any],
-    ) -> TaskChecklist | None:
+    def update_checklist_item(self, subtask_id: str, updates: dict[str, Any]) -> TaskChecklist | None:
         """Update a checklist item and recalculate parent task progress.
 
         :param subtask_id: The ID of the subtask to update.
@@ -719,7 +580,6 @@ class TaskCollection(HabiTuiBaseModel):
             if subtask.id == subtask_id:
                 old_completed = subtask.completed
                 self.subtasks[i] = subtask.model_copy(update=updates)
-
                 # Recalculate parent task progress if completion status changed
                 if "completed" in updates and updates["completed"] != old_completed:
                     self._recalculate_parent_progress(subtask.parent_task_id)
@@ -748,29 +608,16 @@ class TaskCollection(HabiTuiBaseModel):
 
         :param parent_task_id: The ID of the parent task whose progress needs recalculation.
         """
-        parent_subtasks = [
-            s for s in self.subtasks if s.parent_task_id == parent_task_id
-        ]
+        parent_subtasks = [s for s in self.subtasks if s.parent_task_id == parent_task_id]
         total = len(parent_subtasks)
         completed = sum(1 for s in parent_subtasks if s.completed)
         progress = completed / total if total > 0 else 0.0
-
-        updates = {
-            "checklist_total": total,
-            "checklist_completed": completed,
-            "checklist_progress": progress,
-            "checklist": [s.id for s in parent_subtasks],
-        }  # Update checklist IDs
-
+        updates = {"checklist_total": total, "checklist_completed": completed, "checklist_progress": progress, "checklist": [s.id for s in parent_subtasks]}  # Update checklist IDs
         parent_task = self.get_task_by_id(parent_task_id)
         if isinstance(parent_task, TaskTodo):
             updates["checklist_percentage"] = int(progress * 100)
-
         self.modify_task(parent_task_id, updates)
-        log.info(
-            "Recalculated checklist progress for parent task '{}'.",
-            parent_task_id,
-        )
+        log.info("Recalculated checklist progress for parent task '{}'.", parent_task_id)
 
     def get_tag_count(self) -> dict[Any, Any]:
         tags = {}
@@ -780,7 +627,7 @@ class TaskCollection(HabiTuiBaseModel):
                     tags[tag] = 1
                 else:
                     tags[tag] += 1
-        return dict(sorted(tags.items(), key=lambda x: x[1], reverse=True))
+        return dict(sorted(tags.items(), key=operator.itemgetter(1), reverse=True))
 
     def get_damage(self) -> tuple[float | Literal[0], float | Literal[0]]:
         party_damage = 0

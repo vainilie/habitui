@@ -12,14 +12,7 @@ from sqlmodel import Field, SQLModel
 
 
 # ─── Common Model Configuration ────────────────────────────────────────────────
-HABITUI_MODEL_CONFIG = ConfigDict(
-    extra="ignore",
-    populate_by_name=True,
-    alias_generator=camelize,
-    arbitrary_types_allowed=True,
-    validate_assignment=True,
-    use_enum_values=True,
-)
+HABITUI_MODEL_CONFIG = ConfigDict(extra="ignore", populate_by_name=True, alias_generator=camelize, arbitrary_types_allowed=True, validate_assignment=True, use_enum_values=True)
 
 
 # ─── Base Models ──────────────────────────────────────────────────────────────

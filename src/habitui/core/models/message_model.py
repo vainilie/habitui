@@ -1,5 +1,4 @@
 # ♥♥─── HabiTui Message Models ─────────────────────────────────────────────────
-
 from __future__ import annotations
 
 from typing import Any, Self
@@ -54,28 +53,17 @@ class MessageBase(HabiTuiSQLModel):
     @classmethod
     def _parse_common_fields(cls, data: Any) -> Any:
         """Parse common fields from a raw data dictionary or Box."""
-        data_box = (
-            data
-            if isinstance(data, Box)
-            else Box(data, camel_killer_box=True, default_box=True)
-        )
-
+        data_box = data if isinstance(data, Box) else Box(data, camel_killer_box=True, default_box=True)
         data_box["text"] = replace_emoji_shortcodes(data_box.text)
-        data_box["unformatted_text"] = replace_emoji_shortcodes(
-            data_box.unformatted_text,
-        )
+        data_box["unformatted_text"] = replace_emoji_shortcodes(data_box.unformatted_text)
         data_box["user"] = replace_emoji_shortcodes(data_box.user)
         data_box["username"] = replace_emoji_shortcodes(data_box.username)
-
         data_box["timestamp"] = parse_datetime(data_box.timestamp)
-
         data_box["by_me"] = data_box.uuid == app_config.habitica.user_id
         data_box["by_system"] = data_box.uuid == "system"
         data_box["likes"] = data_box.get("likes") or {}
-
         if styles := data_box.userStyles:
             data_box["user_class"] = styles.stats.get("class")
-
         return data_box.to_dict()
 
     @classmethod
@@ -107,7 +95,6 @@ class PartyMessage(MessageBase, table=True):
     """
 
     __tablename__ = "party_message"  # type: ignore
-
     group_id: str | None = None
     has_info: bool = False
     info_type: str | None = None
@@ -116,10 +103,7 @@ class PartyMessage(MessageBase, table=True):
     info_spell: str | None = None
     info_times: float | None = None
     info_quest: str | None = None
-    info_items: dict[str, Any] = Field(
-        default_factory=dict,
-        sa_column=Column(PydanticJSON),
-    )
+    info_items: dict[str, Any] = Field(default_factory=dict, sa_column=Column(PydanticJSON))
     info_target: str | None = None
     info_boss_damage: float | None = None
     info_user_damage: float | None = None
@@ -129,12 +113,7 @@ class PartyMessage(MessageBase, table=True):
     @classmethod
     def _parse_party_specific_fields(cls, data: Any) -> Any:
         """Parse party-specific 'info' block from raw data."""
-        data_box = (
-            data
-            if isinstance(data, Box)
-            else Box(data, camel_killer_box=True, default_box=True)
-        )
-
+        data_box = data if isinstance(data, Box) else Box(data, camel_killer_box=True, default_box=True)
         if info := data_box.info:
             data_box["has_info"] = True
             data_box["info_type"] = info.type
@@ -147,5 +126,4 @@ class PartyMessage(MessageBase, table=True):
             data_box["info_target"] = info.target or ""
             data_box["info_boss_damage"] = info.bossDamage or 0.0
             data_box["info_user_damage"] = info.userDamage or 0.0
-
         return data_box.to_dict()

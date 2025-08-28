@@ -1,5 +1,4 @@
 # ♥♥─── HabiTui User Models ────────────────────────────────────────────────────
-
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Self
@@ -66,13 +65,7 @@ class UserProfile(HabiTuiSQLModel, table=True):
         :param data: The raw API user data as a Box object.
         :returns: A `UserProfile` instance.
         """
-        return cls(
-            id=data.id,
-            username=data.auth.local.username,
-            name=data.profile.name,
-            blurb=data.profile.blurb,
-            party_id=data.party.get("_id"),
-        )
+        return cls(id=data.id, username=data.auth.local.username, name=data.profile.name, blurb=data.profile.blurb, party_id=data.party.get("_id"))
 
 
 # ─── User Stats Raw ───────────────────────────────────────────────────────────
@@ -107,10 +100,7 @@ class UserStatsRaw(HabiTuiSQLModel, table=True):
     base_max_mp: int = 0
     to_next_level: int = 0
     buffs: dict[str, Any] = Field(default_factory=dict, sa_column=Column(PydanticJSON))
-    equipped_gear: list[str] = Field(
-        default_factory=list,
-        sa_column=Column(PydanticJSON),
-    )
+    equipped_gear: list[str] = Field(default_factory=list, sa_column=Column(PydanticJSON))
 
     @classmethod
     def from_api_box(cls, data: Box) -> Self:
@@ -133,10 +123,7 @@ class UserStatsRaw(HabiTuiSQLModel, table=True):
             base_max_mp=stats.max_mp,
             to_next_level=stats.to_next_level,
             buffs=stats.buffs,
-            equipped_gear=[
-                decamelize(gear)
-                for gear in data["items"].gear.get("equipped", {}).values()
-            ],
+            equipped_gear=[decamelize(gear) for gear in data["items"].gear.get("equipped", {}).values()],
             balance=balance,
             gems=(balance * 4) if balance is not None else 0,
         )
@@ -168,15 +155,9 @@ class UserCurrentState(HabiTuiSQLModel, table=True):
     perception: float = Field(alias="per", default=0.0)
     current_quest_key: str | None = None
     current_quest_active: bool = Field(default=False)
-    current_quest_progress: dict[str, Any] | None = Field(
-        default=None,
-        sa_column=Column(PydanticJSON),
-    )
+    current_quest_progress: dict[str, Any] | None = Field(default=None, sa_column=Column(PydanticJSON))
     current_quest_completed: str | None = None
-    training: dict[str, Any] | None = Field(
-        default=None,
-        sa_column=Column(PydanticJSON),
-    )
+    training: dict[str, Any] | None = Field(default=None, sa_column=Column(PydanticJSON))
 
     @classmethod
     def from_api_box(cls, data: Box) -> Self:
@@ -212,14 +193,8 @@ class UserHistory(HabiTuiSQLModel, table=True):
     """
 
     __tablename__ = "user_history"  # type: ignore
-    exp: list[dict[str, Any]] = Field(
-        default_factory=list,
-        sa_column=Column(PydanticJSON),
-    )
-    todos: list[dict[str, Any]] = Field(
-        default_factory=list,
-        sa_column=Column(PydanticJSON),
-    )
+    exp: list[dict[str, Any]] = Field(default_factory=list, sa_column=Column(PydanticJSON))
+    todos: list[dict[str, Any]] = Field(default_factory=list, sa_column=Column(PydanticJSON))
 
     @classmethod
     def from_api_box(cls, data: Box) -> Self:
@@ -329,14 +304,8 @@ class UserNotifications(HabiTuiSQLModel, table=True):
 
     __tablename__ = "user_notifications"  # type: ignore
     inbox_new_message_count: int = 0
-    new_messages: dict[str, Any] = Field(
-        default_factory=dict,
-        sa_column=Column(PydanticJSON),
-    )
-    notifications: list[dict[str, Any]] = Field(
-        default_factory=list,
-        sa_column=Column(PydanticJSON),
-    )
+    new_messages: dict[str, Any] = Field(default_factory=dict, sa_column=Column(PydanticJSON))
+    notifications: list[dict[str, Any]] = Field(default_factory=list, sa_column=Column(PydanticJSON))
     current_quest_rsvp_needed: bool = False
     current_quest_completed_trigger: str | None = None
 
@@ -347,14 +316,7 @@ class UserNotifications(HabiTuiSQLModel, table=True):
         :param data: The raw API user data as a Box object.
         :returns: A `UserNotifications` instance.
         """
-        return cls(
-            id=data.id,
-            inbox_new_message_count=data.inbox.new_messages,
-            new_messages=data.new_messages,
-            notifications=data.notifications,
-            current_quest_rsvp_needed=data.party.quest.rsvp_needed,
-            current_quest_completed_trigger=data.party.quest.completed or None,
-        )
+        return cls(id=data.id, inbox_new_message_count=data.inbox.new_messages, new_messages=data.new_messages, notifications=data.notifications, current_quest_rsvp_needed=data.party.quest.rsvp_needed, current_quest_completed_trigger=data.party.quest.completed or None)
 
 
 # ─── User Timestamps ──────────────────────────────────────────────────────────
@@ -371,12 +333,7 @@ class UserTimestamps(HabiTuiSQLModel, table=True):
     last_login_at: datetime.datetime | None = None
     account_updated_at: datetime.datetime | None = None
 
-    @field_validator(
-        "last_login_at",
-        "account_updated_at",
-        "account_updated_at",
-        mode="before",
-    )
+    @field_validator("last_login_at", "account_updated_at", "account_updated_at", mode="before")
     @classmethod
     def _parse_start_date(cls, v: Any) -> datetime.datetime | None:
         """Parse the start date string into a datetime object.
@@ -394,12 +351,7 @@ class UserTimestamps(HabiTuiSQLModel, table=True):
         :returns: A `UserTimestamps` instance.
         """
         timestamps = data.auth.timestamps
-        return cls(
-            id=data.id,
-            account_created_at=timestamps.created,
-            last_login_at=timestamps.logged_in,
-            account_updated_at=timestamps.updated,
-        )
+        return cls(id=data.id, account_created_at=timestamps.created, last_login_at=timestamps.logged_in, account_updated_at=timestamps.updated)
 
 
 # ─── User Stats Computed ──────────────────────────────────────────────────────
@@ -429,13 +381,7 @@ class UserStatsComputed(HabiTuiSQLModel, table=True):
     gear_bonus_per: float = 0.0
 
     @classmethod
-    def from_dependencies(
-        cls,
-        user_id: str,
-        raw_stats: UserStatsRaw,
-        user_state: UserCurrentState,
-        content_vault: ContentCollection,
-    ) -> Self:
+    def from_dependencies(cls, user_id: str, raw_stats: UserStatsRaw, user_state: UserCurrentState, content_vault: ContentCollection) -> Self:
         """Calculate all effective stats and returns an instance.
 
         :param user_id: The user's ID.
@@ -445,53 +391,19 @@ class UserStatsComputed(HabiTuiSQLModel, table=True):
         :returns: A `UserStatsComputed` instance.
         """
         level_bonus = round(min(50.0, raw_stats.level / 2), 0)
-        gear_bonuses = {
-            "strength": 0.0,
-            "constitution": 0.0,
-            "intelligence": 0.0,
-            "perception": 0.0,
-        }
-
+        gear_bonuses = {"strength": 0.0, "constitution": 0.0, "intelligence": 0.0, "perception": 0.0}
         for key in raw_stats.equipped_gear:
             if gear := content_vault.get_gear(key):
                 multiplier = 1.5 if gear.special_class == raw_stats.class_name else 1.0
                 for stat in gear_bonuses:
                     gear_bonuses[stat] += getattr(gear, stat, 0.0) * multiplier
-
-        eff_str = (
-            user_state.strength
-            + raw_stats.buffs.get("str", 0)
-            + gear_bonuses["strength"]
-            + level_bonus
-        )
-        eff_con = (
-            user_state.constitution
-            + raw_stats.buffs.get("con", 0)
-            + gear_bonuses["constitution"]
-            + level_bonus
-        )
-        eff_int = (
-            user_state.intelligence
-            + raw_stats.buffs.get("int", 0)
-            + gear_bonuses["intelligence"]
-            + level_bonus
-        )
-        eff_per = (
-            user_state.perception
-            + raw_stats.buffs.get("per", 0)
-            + gear_bonuses["perception"]
-            + level_bonus
-        )
-
+        eff_str = user_state.strength + raw_stats.buffs.get("str", 0) + gear_bonuses["strength"] + level_bonus
+        eff_con = user_state.constitution + raw_stats.buffs.get("con", 0) + gear_bonuses["constitution"] + level_bonus
+        eff_int = user_state.intelligence + raw_stats.buffs.get("int", 0) + gear_bonuses["intelligence"] + level_bonus
+        eff_per = user_state.perception + raw_stats.buffs.get("per", 0) + gear_bonuses["perception"] + level_bonus
         boss_str = 0.0
-        if (
-            (quest_key := user_state.current_quest_key)
-            and (quest := content_vault.get_quest(decamelize(quest_key)))
-            and quest.is_boss_quest
-            and quest.boss_str is not None
-        ):
+        if (quest_key := user_state.current_quest_key) and (quest := content_vault.get_quest(decamelize(quest_key))) and quest.is_boss_quest and quest.boss_str is not None:
             boss_str = quest.boss_str
-
         return cls(
             id=user_id,
             effective_strength=eff_str,
@@ -509,6 +421,18 @@ class UserStatsComputed(HabiTuiSQLModel, table=True):
 
 
 # ─── User Collection ──────────────────────────────────────────────────────────
+def format_date(date_obj: datetime.datetime) -> str:
+    if hasattr(date_obj, "strftime"):
+        return DateTimeHandler(timestamp=date_obj).format_local(fmt="%MM,%Y")
+    return str(date_obj) if date_obj else "N/A"
+
+
+def get_class_icon(obj: str) -> str:
+    """Get class information with icon."""
+    class_icons = {"wizard": icons.WIZARD, "mage": icons.WIZARD, "healer": icons.HEALER, "warrior": icons.WARRIOR, "rogue": icons.ROGUE, "no class": icons.USER}
+    return class_icons.get(obj.lower(), icons.USER)
+
+
 class UserCollection(HabiTuiBaseModel):
     """Complete collection of all parsed user data.
 
@@ -542,11 +466,7 @@ class UserCollection(HabiTuiBaseModel):
     challenges: list[ChallengeInUser]
 
     @classmethod
-    def from_api_data(
-        cls,
-        raw_data: dict[str, Any],
-        content_vault: ContentCollection,
-    ) -> Self:
+    def from_api_data(cls, raw_data: dict[str, Any], content_vault: ContentCollection) -> Self:
         """Parse raw API data into a structured UserCollection instance.
 
         :param raw_data: The raw API response for the user profile.
@@ -554,7 +474,6 @@ class UserCollection(HabiTuiBaseModel):
         :returns: A populated UserCollection instance.
         """
         data = Box(raw_data, default_box=True, camel_killer_box=True)
-
         profile = UserProfile.from_api_box(data)
         raw_stats = UserStatsRaw.from_api_box(data)
         user_state = UserCurrentState.from_api_box(data)
@@ -564,73 +483,29 @@ class UserCollection(HabiTuiBaseModel):
         achievements = UserAchievements.from_api_box(data)
         notifications = UserNotifications.from_api_box(data)
         timestamps = UserTimestamps.from_api_box(data)
-
-        tags = [
-            TagComplex.model_validate({**tag.to_dict(), "position": i})
-            for i, tag in enumerate(data.tags or [])
-        ]
+        tags = [TagComplex.model_validate({**tag.to_dict(), "position": i}) for i, tag in enumerate(data.tags or [])]
         challenges = [ChallengeInUser.from_api_id(cid) for cid in data.challenges or []]
         inbox_msgs = (data.inbox.messages or {}).values()
         inbox = [UserMessage.from_api_dict(msg, i) for i, msg in enumerate(inbox_msgs)]
+        computed_stats = UserStatsComputed.from_dependencies(user_id=data.id, raw_stats=raw_stats, user_state=user_state, content_vault=content_vault)
+        return cls(profile=profile, raw_stats=raw_stats, user_state=user_state, computed_stats=computed_stats, preferences=preferences, history=history, tasks_order=tasks_order, achievements=achievements, notifications=notifications, timestamps=timestamps, simple_tags=tags, inbox=inbox, challenges=challenges)
 
-        computed_stats = UserStatsComputed.from_dependencies(
-            user_id=data.id,
-            raw_stats=raw_stats,
-            user_state=user_state,
-            content_vault=content_vault,
-        )
-
-        return cls(
-            profile=profile,
-            raw_stats=raw_stats,
-            user_state=user_state,
-            computed_stats=computed_stats,
-            preferences=preferences,
-            history=history,
-            tasks_order=tasks_order,
-            achievements=achievements,
-            notifications=notifications,
-            timestamps=timestamps,
-            simple_tags=tags,
-            inbox=inbox,
-            challenges=challenges,
-        )
-
-    def get_current_quest_data(
-        self,
-        content_vault: ContentCollection,
-    ) -> QuestItem | None:
+    def get_current_quest_data(self, content_vault: ContentCollection) -> QuestItem | None:
         """Get current quest data from game content."""
         if self.user_state.current_quest_key:
-            log.info(
-                content_vault.get_quest(
-                    key=decamelize(self.user_state.current_quest_key),
-                ),
-            )
-            return content_vault.get_quest(
-                key=decamelize(self.user_state.current_quest_key),
-            )
+            log.info(content_vault.get_quest(key=decamelize(self.user_state.current_quest_key)))
+            return content_vault.get_quest(key=decamelize(self.user_state.current_quest_key))
         return None
 
-    def available_spells(
-        self,
-        content_vault: ContentCollection,
-    ) -> dict[str, SpellItem | int]:
+    def available_spells(self, content_vault: ContentCollection) -> dict[str, SpellItem | float]:
         """Get current quest data from game content."""
-        spells_info = {
-            "affordable": [],
-            "non_affordable": [],
-            "current_mana": self.raw_stats.mp,
-        }
-        spells = content_vault.get_spells_by_class(
-            character_class=self.raw_stats.class_name,
-        )
+        spells_info = {"affordable": [], "non_affordable": [], "current_mana": self.raw_stats.mp}
+        spells = content_vault.get_spells_by_class(character_class=self.raw_stats.class_name)
         for spell in spells:
             if self.raw_stats.mp >= spell.mana:
                 spells_info["affordable"].append(spell)
             else:
                 spells_info["non_affordable"].append(spell)
-
         return spells_info
 
     # ──────────────────────────────────────────────────────────────────────────────
@@ -672,46 +547,17 @@ class UserCollection(HabiTuiBaseModel):
 
     def get_inbox_by_senders(self) -> dict[str, dict[Any, Any]]:
         senders: dict[str, dict] = {}
-
         for msg in self.inbox:
             sender = msg.uuid
-
             if sender not in senders:
                 sender_name = msg.user if not msg.by_me else None
                 sender_username = msg.username if not msg.by_me else None
-                senders[sender] = {
-                    "uuid": msg.uuid,
-                    "sender_name": sender_name,
-                    "sender_username": sender_username,
-                    "last_time": msg.timestamp,
-                    "last_by_me": msg.by_me,
-                    "messages": [],
-                }
-
+                senders[sender] = {"uuid": msg.uuid, "sender_name": sender_name, "sender_username": sender_username, "last_time": msg.timestamp, "last_by_me": msg.by_me, "messages": []}
             senders[sender]["messages"].append(msg)
-
             if not msg.by_me and not senders[sender]["sender_name"]:
                 senders[sender]["sender_name"] = msg.user
                 senders[sender]["sender_username"] = msg.username
-
         return senders
-
-    def format_date(self, date_obj: datetime.datetime) -> str:
-        if hasattr(date_obj, "strftime"):
-            return DateTimeHandler(timestamp=date_obj).format_local(fmt="%MM,%Y")
-        return str(date_obj) if date_obj else "N/A"
-
-    def get_class_icon(self, obj: str) -> str:
-        """Get class information with icon."""
-        class_icons = {
-            "wizard": icons.WIZARD,
-            "mage": icons.WIZARD,
-            "healer": icons.HEALER,
-            "warrior": icons.WARRIOR,
-            "rogue": icons.ROGUE,
-            "no class": icons.USER,
-        }
-        return class_icons.get(obj.lower(), icons.USER)
 
     def get_display_data(self) -> dict[str, Any]:
         quest_name = ""
@@ -719,37 +565,23 @@ class UserCollection(HabiTuiBaseModel):
         if self.user_state.current_quest_key:
             current_quest_key = self.user_state.current_quest_key
             quest_name = f"{current_quest_key.capitalize()}"  # type: ignore
-
         status_parts = []
-
         if self.user_state.current_quest_completed:
             status_parts.append(icons.CHECK)
-
         if self.notifications.current_quest_completed_trigger:
             status_parts.append("(Get rewards!)")
-
         status_suffix = " " + " ".join(status_parts) if status_parts else ""
         display_text = f"{icons.QUEST} {quest_name}{status_suffix}"
-
         return {
             "display_name": self.profile.name or "Unknown User",
             "class_name": self.raw_stats.class_name or "no class",
-            "klass_icon": self.get_class_icon(self.raw_stats.class_name.lower()),
+            "klass_icon": get_class_icon(self.raw_stats.class_name.lower()),
             "sleep": "Resting" if self.is_sleeping() else "Awake",
             "day_start": self.preferences.day_start,
             "needs_cron": self.user_state.needs_cron,
-            "hp": {
-                "current": int(self.raw_stats.hp),
-                "max": int(self.raw_stats.base_max_hp),
-            },
-            "xp": {
-                "current": int(self.raw_stats.exp),
-                "max": self.raw_stats.to_next_level,
-            },
-            "mp": {
-                "current": int(self.raw_stats.mp),
-                "max": int(self.computed_stats.effective_max_mp),
-            },
+            "hp": {"current": int(self.raw_stats.hp), "max": int(self.raw_stats.base_max_hp)},
+            "xp": {"current": int(self.raw_stats.exp), "max": self.raw_stats.to_next_level},
+            "mp": {"current": int(self.raw_stats.mp), "max": int(self.computed_stats.effective_max_mp)},
             "level": self.raw_stats.level,
             "gold": int(self.raw_stats.gp),
             "gems": int(self.raw_stats.gems or 0),
@@ -757,9 +589,7 @@ class UserCollection(HabiTuiBaseModel):
             "perception": int(self.computed_stats.effective_perception),
             "strength": int(self.computed_stats.effective_strength),
             "constitution": int(self.computed_stats.effective_constitution),
-            "account_created": self.format_date(self.timestamps.account_created_at)
-            if self.timestamps.account_created_at
-            else "Unknown",
+            "account_created": format_date(self.timestamps.account_created_at) if self.timestamps.account_created_at else "Unknown",
             "login_days": self.achievements.login_incentives,
             "perfect_days": self.achievements.perfect,
             "streak_count": self.achievements.streak,
@@ -769,11 +599,7 @@ class UserCollection(HabiTuiBaseModel):
             "bio": self.profile.blurb or "No biography available.",
             "has_quest": bool(current_quest_key),
             "quest_name": "No active quest" if not current_quest_key else quest_name,
-            "quest_display_text": "No active quest"
-            if not current_quest_key
-            else display_text,
-            "quest_completed": False
-            if not current_quest_key
-            else self.user_state.current_quest_completed,
+            "quest_display_text": "No active quest" if not current_quest_key else display_text,
+            "quest_completed": False if not current_quest_key else self.user_state.current_quest_completed,
             "rsvp": self.notifications.current_quest_rsvp_needed,
         }

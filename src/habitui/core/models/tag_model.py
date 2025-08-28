@@ -19,17 +19,8 @@ from .base_model import HabiTuiSQLModel, HabiTuiBaseModel
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
-
-
 # ─── Constants ─────────────────────────────────────────────────────────────────
-ATTRIBUTE_SYMBOLS: dict[str, str] = {
-    "🜄": "con",  # Water symbol → Constitution
-    "🜂": "str",  # Fire symbol → Strength
-    "🜁": "int",  # Air symbol → Intelligence
-    "🜃": "per",  # Earth symbol → Perception
-    "᛭": "legacy",  # Nordic cross symbol → Legacy  # noqa: RUF001
-}
-
+ATTRIBUTE_SYMBOLS: dict[str, str] = {"🜄": "con", "🜂": "str", "🜁": "int", "🜃": "per", "᛭": "legacy"}  # Water symbol → Constitution  # Fire symbol → Strength  # Air symbol → Intelligence  # Earth symbol → Perception  # Nordic cross symbol → Legacy  # noqa: RUF001
 SYMBOL_REGEX = re.compile(f"({'|'.join(re.escape(s) for s in ATTRIBUTE_SYMBOLS)})")
 
 
@@ -49,7 +40,6 @@ class TagComplex(HabiTuiSQLModel, table=True):
     name: str
     challenge: bool = False
     position: int | None = None
-
     tag_type: TagType = Field(default=TagType.BASIC)
     trait: TagsTrait | None = Field(default=None)
     attribute: Attribute | None = Field(default=None)
@@ -83,6 +73,12 @@ class TagComplex(HabiTuiSQLModel, table=True):
 
 
 # ─── Tag Factory ───────────────────────────────────────────────────────────────
+def _detect_attribute_from_symbol(name: str) -> str | None:
+    """Detect attribute type from Unicode symbols in tag name."""
+    match = SYMBOL_REGEX.search(name)
+    return ATTRIBUTE_SYMBOLS.get(match.group(1)) if match else None
+
+
 class TagFactory:
     """Factory for creating tags from raw API data."""
 
@@ -104,138 +100,46 @@ class TagFactory:
             self.id_to_attr[str(self.tag_settings.id_attr_con)] = "con"
         if self.tag_settings.id_attr_per:
             self.id_to_attr[str(self.tag_settings.id_attr_per)] = "per"
-
         self.attr_to_parent = {v: k for k, v in self.id_to_attr.items()}
 
-    def _detect_attribute_from_symbol(self, name: str) -> str | None:
-        """Detect attribute type from Unicode symbols in tag name."""
-        match = SYMBOL_REGEX.search(name)
-        return ATTRIBUTE_SYMBOLS.get(match.group(1)) if match else None
-
-    def determine_tag_data(
-        self,
-        tag_id: str,
-        name: str,
-    ) -> tuple[
-        TagType,
-        TagsCategory | None,
-        TagsTrait | None,
-        Attribute | None,
-        str | None,
-    ]:
+    def determine_tag_data(self, tag_id: str, name: str) -> tuple[TagType, TagsCategory | None, TagsTrait | None, Attribute | None, str | None]:
         """Determine tag type, parent_id, and attribute from tag ID and name."""
         tag_id = str(tag_id)
-
         # Check if it's an attribute parent tag
         if tag_id in self.id_to_attr:
-            return (
-                TagType.PARENT,
-                TagsCategory.ATTRIBUTE,
-                self.id_to_attr[tag_id],
-                self.id_to_attr[tag_id],
-                None,
-            )
+            return TagType.PARENT, TagsCategory.ATTRIBUTE, self.id_to_attr[tag_id], self.id_to_attr[tag_id], None
         if self.tag_settings.id_no_attr and tag_id == str(self.tag_settings.id_no_attr):
-            return (
-                TagType.PARENT,
-                TagsCategory.ATTRIBUTE,
-                TagsTrait.NO_ATTRIBUTE,
-                None,
-                None,
-            )
-
+            return TagType.PARENT, TagsCategory.ATTRIBUTE, TagsTrait.NO_ATTRIBUTE, None, None
         # Check if it's a challenge parent tag
-        if self.tag_settings.id_challenge and tag_id == str(
-            self.tag_settings.id_challenge,
-        ):
-            return (
-                TagType.PARENT,
-                TagsCategory.OWNERSHIP,
-                TagsTrait.CHALLENGE,
-                None,
-                None,
-            )
-
+        if self.tag_settings.id_challenge and tag_id == str(self.tag_settings.id_challenge):
+            return TagType.PARENT, TagsCategory.OWNERSHIP, TagsTrait.CHALLENGE, None, None
         # Check if it's a personal parent tag
-        if self.tag_settings.id_personal and tag_id == str(
-            self.tag_settings.id_personal,
-        ):
-            return (
-                TagType.PARENT,
-                TagsCategory.OWNERSHIP,
-                TagsTrait.PERSONAL,
-                None,
-                None,
-            )
-
+        if self.tag_settings.id_personal and tag_id == str(self.tag_settings.id_personal):
+            return TagType.PARENT, TagsCategory.OWNERSHIP, TagsTrait.PERSONAL, None, None
         # Check if it's a legacy subtag (child of challenge)
         if self.tag_settings.id_legacy and tag_id == str(self.tag_settings.id_legacy):
-            challenge_id = (
-                str(self.tag_settings.id_challenge)
-                if self.tag_settings.id_challenge
-                else None
-            )
-            return (
-                TagType.PARENT,
-                TagsCategory.OWNERSHIP,
-                TagsTrait.LEGACY,
-                None,
-                challenge_id,
-            )
-
-        attr = self._detect_attribute_from_symbol(name)
+            challenge_id = str(self.tag_settings.id_challenge) if self.tag_settings.id_challenge else None
+            return TagType.PARENT, TagsCategory.OWNERSHIP, TagsTrait.LEGACY, None, challenge_id
+        attr = _detect_attribute_from_symbol(name)
         if attr == "legacy" and self.tag_settings.id_legacy:
             return TagType.SUBTAG, None, None, None, str(self.tag_settings.id_legacy)
-
         # Check for attribute symbols in subtag names
         if attr and attr in self.attr_to_parent:
-            return (
-                TagType.SUBTAG,
-                None,
-                None,
-                Attribute(attr),
-                self.attr_to_parent[attr],
-            )
+            return TagType.SUBTAG, None, None, Attribute(attr), self.attr_to_parent[attr]
         # Default to base tag
         return TagType.BASIC, None, None, None, None
 
-    def create_tag(
-        self,
-        raw_data: dict[str, Any],
-        position: int | None = None,
-    ) -> TagComplex:
+    def create_tag(self, raw_data: dict[str, Any], position: int | None = None) -> TagComplex:
         """Create a TagComplex instance from raw API data."""
         tag_id = str(raw_data.get("id", ""))
         name = raw_data.get("name", raw_data.get("text", "Unnamed"))
         challenge = raw_data.get("challenge", False)
-
-        tag_type, category, trait, attribute, parent_id = self.determine_tag_data(
-            tag_id,
-            name,
-        )
-
-        model_input = {
-            "id": tag_id,
-            "name": name,
-            "tag_type": tag_type,
-            "category": category,
-            "trait": trait,
-            "parent_id": parent_id,
-            "attribute": attribute,
-            "challenge": challenge,
-            "position": position,
-        }
-
+        tag_type, category, trait, attribute, parent_id = self.determine_tag_data(tag_id, name)
+        model_input = {"id": tag_id, "name": name, "tag_type": tag_type, "category": category, "trait": trait, "parent_id": parent_id, "attribute": attribute, "challenge": challenge, "position": position}
         try:
             return TagComplex.model_validate(model_input)
         except ValidationError as e:
-            log.error(
-                "Validation failed for tag ID '{}' (name: '{}', type: '{}'): {}",
-                tag_id,
-                name,
-                tag_type,
-                e.errors(include_url=False, include_input=False),
-            )
+            log.error("Validation failed for tag ID '{}' (name: '{}', type: '{}'): {}", tag_id, name, tag_type, e.errors(include_url=False, include_input=False))
             raise
 
     def process_tags_list(self, raw_list: list[dict[str, Any]]) -> TagCollection:
@@ -293,39 +197,28 @@ class TagCollection(HabiTuiBaseModel):
         if not tag:
             log.warning("Tag with ID '{}...' not found for update", tag_id[:8])
             return None
-
         # Validate name if provided
         if "name" in update_data and not update_data["name"].strip():
             log.warning("Cannot update tag '{}...' with empty name", tag_id[:8])
             return None
-
         try:
             # Preserve position if not explicitly updated
             if "position" not in update_data and tag.position is not None:
                 update_data["position"] = tag.position
-
             # Strip name if provided
             if "name" in update_data:
                 update_data["name"] = update_data["name"].strip()
-
             updated_tag = tag.model_copy(update=update_data)
-
             # Replace in collection
             for i, t in enumerate(self.tags):
                 if t.id == tag_id:
                     self.tags[i] = updated_tag
                     self._index_by_id[tag_id] = updated_tag
                     break
-
             log.debug("Updated tag '{}' (ID: {}...)", updated_tag.name, tag_id[:8])
             return updated_tag
-
         except ValidationError as e:
-            log.error(
-                "Validation error updating tag '{}...': {}",
-                tag_id[:8],
-                e.errors(),
-            )
+            log.error("Validation error updating tag '{}...': {}", tag_id[:8], e.errors())
             return None
 
     def _update_positions(self) -> None:
@@ -338,35 +231,18 @@ class TagCollection(HabiTuiBaseModel):
         """Get a tag by its ID."""
         return self._index_by_id.get(tag_id)
 
-    def filter_by_name(
-        self,
-        name_substring: str,
-        case_sensitive: bool = False,
-    ) -> list[TagComplex]:
+    def filter_by_name(self, name_substring: str, case_sensitive: bool = False) -> list[TagComplex]:
         """Filter tags by name substring."""
         if not name_substring:
             return list(self.tags)
-
         if case_sensitive:
             return [tag for tag in self.tags if name_substring in tag.name]
-
         substring_lower = name_substring.lower()
         return [tag for tag in self.tags if substring_lower in tag.name.lower()]
 
-    def get_by_category_trait(
-        self,
-        category: TagsCategory,
-        trait: TagsTrait,
-    ) -> TagComplex | None:
+    def get_by_category_trait(self, category: TagsCategory, trait: TagsTrait) -> TagComplex | None:
         """Get tag by category and trait combination."""
-        return next(
-            (
-                tag
-                for tag in self.tags
-                if tag.category == category and tag.trait == trait
-            ),
-            None,
-        )
+        return next((tag for tag in self.tags if tag.category == category and tag.trait == trait), None)
 
     def get_subtags_for_parent(self, parent_id: str) -> list[TagComplex]:
         """Get all subtags for a specific parent."""
@@ -376,24 +252,12 @@ class TagCollection(HabiTuiBaseModel):
         """Get all tags with a specific attribute."""
         if isinstance(attribute, Attribute):
             # Get subtags for attribute parent
-            parent_map = {
-                Attribute.STRENGTH: (TagsCategory.ATTRIBUTE, TagsTrait.STRENGTH),
-                Attribute.INTELLIGENCE: (
-                    TagsCategory.ATTRIBUTE,
-                    TagsTrait.INTELLIGENCE,
-                ),
-                Attribute.CONSTITUTION: (
-                    TagsCategory.ATTRIBUTE,
-                    TagsTrait.CONSTITUTION,
-                ),
-                Attribute.PERCEPTION: (TagsCategory.ATTRIBUTE, TagsTrait.PERCEPTION),
-            }
+            parent_map = {Attribute.STRENGTH: (TagsCategory.ATTRIBUTE, TagsTrait.STRENGTH), Attribute.INTELLIGENCE: (TagsCategory.ATTRIBUTE, TagsTrait.INTELLIGENCE), Attribute.CONSTITUTION: (TagsCategory.ATTRIBUTE, TagsTrait.CONSTITUTION), Attribute.PERCEPTION: (TagsCategory.ATTRIBUTE, TagsTrait.PERCEPTION)}
             if attribute in parent_map:
                 category, trait = parent_map[attribute]
                 parent = self.get_by_category_trait(category, trait)
                 return self.get_subtags_for_parent(parent.id) if parent else []
             return []
-
         # String attribute lookup
         return [tag for tag in self.tags if tag.attribute == attribute]
 
@@ -432,7 +296,6 @@ class TagCollection(HabiTuiBaseModel):
     def group_by(self, key: str) -> dict[str, list[TagComplex]]:
         """Group tags by a specified attribute. Supports 'parent_id', 'attribute', 'category', 'trait'."""
         grouped = defaultdict(list)
-
         for tag in self.tags:
             if key == "parent_id" and tag.parent_id:
                 grouped[tag.parent_id].append(tag)
@@ -442,7 +305,6 @@ class TagCollection(HabiTuiBaseModel):
                 value = getattr(tag, key)
                 if value:
                     grouped[str(value)].append(tag)
-
         return dict(grouped)
 
     # ─── Convenience Parent Getters ───────────────────────────────────────────
@@ -460,25 +322,16 @@ class TagCollection(HabiTuiBaseModel):
         return self.get_by_category_trait(TagsCategory.ATTRIBUTE, TagsTrait.STRENGTH)
 
     def get_int_parent(self) -> TagComplex | None:
-        return self.get_by_category_trait(
-            TagsCategory.ATTRIBUTE,
-            TagsTrait.INTELLIGENCE,
-        )
+        return self.get_by_category_trait(TagsCategory.ATTRIBUTE, TagsTrait.INTELLIGENCE)
 
     def get_con_parent(self) -> TagComplex | None:
-        return self.get_by_category_trait(
-            TagsCategory.ATTRIBUTE,
-            TagsTrait.CONSTITUTION,
-        )
+        return self.get_by_category_trait(TagsCategory.ATTRIBUTE, TagsTrait.CONSTITUTION)
 
     def get_per_parent(self) -> TagComplex | None:
         return self.get_by_category_trait(TagsCategory.ATTRIBUTE, TagsTrait.PERCEPTION)
 
     def get_no_attr_parent(self) -> TagComplex | None:
-        return self.get_by_category_trait(
-            TagsCategory.ATTRIBUTE,
-            TagsTrait.NO_ATTRIBUTE,
-        )
+        return self.get_by_category_trait(TagsCategory.ATTRIBUTE, TagsTrait.NO_ATTRIBUTE)
 
     def get_parents_by_category(self, category: TagsCategory) -> list[TagComplex]:
         """Get all parent tags by category."""
