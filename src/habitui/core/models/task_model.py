@@ -22,8 +22,9 @@ if TYPE_CHECKING:
 
     from box import Box
 
+    from habitui.core.client.api_models import SuccessfulResponseData
+
     from .user_model import UserCollection
-SuccessfulResponseData = dict[str, Any] | list[dict[str, Any]] | list[Any] | None
 
 
 # ─── BASE MODELS ────────────────────────────────────────────────────────────────

@@ -6,22 +6,7 @@ from datetime import timedelta
 
 from sqlmodel import Session, select
 
-from habitui.core.models import (
-    TagComplex,
-    UserHistory,
-    UserMessage,
-    UserProfile,
-    UserStatsRaw,
-    UserCollection,
-    UserTasksOrder,
-    UserTimestamps,
-    HabiTuiSQLModel,
-    UserPreferences,
-    UserAchievements,
-    UserCurrentState,
-    UserNotifications,
-    UserStatsComputed,
-)
+from habitui.core.models import TagComplex, UserHistory, UserMessage, UserProfile, UserStatsRaw, UserCollection, UserTasksOrder, UserTimestamps, HabiTuiSQLModel, UserPreferences, UserAchievements, UserCurrentState, UserNotifications, UserStatsComputed
 from habitui.custom_logger import log
 from habitui.config.app_config import app_config
 
@@ -35,12 +20,7 @@ TIMEOUT = timedelta(minutes=app_config.cache.live_minutes)
 class UserVault(BaseVault[UserCollection]):
     """Vault implementation for managing all user profile-related content."""
 
-    def __init__(
-        self,
-        vault_name: str = "user_vault",
-        db_url: str | None = None,
-        echo: bool = False,
-    ) -> None:
+    def __init__(self, vault_name: str = "user_vault", db_url: str | None = None, echo: bool = False) -> None:
         """Initialize the UserVault with the appropriate cache timeout.
 
         :param vault_name: The name of this vault instance.
@@ -49,13 +29,7 @@ class UserVault(BaseVault[UserCollection]):
         """
         if db_url is None:
             db_url = f"sqlite:///{DATABASE_FILE_NAME}"
-
-        super().__init__(
-            vault_name=vault_name,
-            cache_time=TIMEOUT,
-            db_url=db_url,
-            echo=echo,
-        )
+        super().__init__(vault_name=vault_name, cache_time=TIMEOUT, db_url=db_url, echo=echo)
 
     def get_model_configs(self) -> dict[str, type[HabiTuiSQLModel]]:
         """Return the mapping of content types to their SQLModel classes."""
@@ -74,12 +48,7 @@ class UserVault(BaseVault[UserCollection]):
             "inbox": UserMessage,
         }
 
-    def save(
-        self,
-        content: UserCollection,
-        strategy: SaveStrategy = "smart",
-        debug: bool = True,
-    ) -> None:
+    def save(self, content: UserCollection, strategy: SaveStrategy = "smart", debug: bool = True) -> None:
         """Save all components of a UserCollection to the database.
 
         :param content: A UserCollection object containing all user profile parts.
@@ -88,10 +57,7 @@ class UserVault(BaseVault[UserCollection]):
         """
         with Session(self.engine) as session:  # type: ignore
             try:
-                log.info(
-                    "Starting user profile database sync with '{}' strategy.",
-                    strategy,
-                )
+                log.info("Starting user profile database sync with '{}' strategy.", strategy)
                 models_to_save = {
                     "profile": (UserProfile, content.profile),
                     "raw_stats": (UserStatsRaw, content.raw_stats),
@@ -106,40 +72,17 @@ class UserVault(BaseVault[UserCollection]):
                 }
                 for name, (model_cls, item) in models_to_save.items():
                     if item:
-                        self._save_single_item(
-                            session,
-                            model_cls,
-                            item,
-                            strategy,
-                            name,
-                            debug,
-                        )
-
+                        self._save_single_item(session, model_cls, item, strategy, name, debug)
                 if content.simple_tags:
-                    self._save_item_list(
-                        session,
-                        TagComplex,
-                        content.simple_tags,
-                        "smart",
-                        "simple_tags",
-                        debug,
-                    )
-
+                    self._save_item_list(session, TagComplex, content.simple_tags, "smart", "simple_tags", debug)
                 if content.inbox:
-                    self._save_append_mode(
-                        session,
-                        UserMessage,
-                        content.inbox,
-                        "inbox",
-                        debug,
-                    )
-
+                    self._save_append_mode(session, UserMessage, content.inbox, "inbox", debug)
                 session.commit()
-                log.info("Commit successful")
+                log.debug("Commit successful")
             except Exception as e:
                 log.error("Commit failed: {}", e)
                 raise
-            log.info("User profile database sync completed.")
+            log.success("User database sync done")
 
     def load(self) -> UserCollection | None:
         """Load all user profile content from the database. Reconstructs the UserCollection.
@@ -149,11 +92,8 @@ class UserVault(BaseVault[UserCollection]):
         with Session(self.engine) as session:  # type: ignore
             profile = session.exec(select(UserProfile)).first()
             if not profile:
-                log.warning(
-                    "No UserProfile found in the database. Cannot load user collection.",
-                )
+                log.warning("No UserProfile found in the database. Cannot load user collection.")
                 return None
-
             raw_stats = session.exec(select(UserStatsRaw)).first()
             computed_stats = session.exec(select(UserStatsComputed)).first()
             user_state = session.exec(select(UserCurrentState)).first()
@@ -165,7 +105,6 @@ class UserVault(BaseVault[UserCollection]):
             timestamps = session.exec(select(UserTimestamps)).first()
             simple_tags = list(session.exec(select(TagComplex)).all())
             inbox_messages = list(session.exec(select(UserMessage)).all())
-
             try:
                 return UserCollection(
                     profile=profile,

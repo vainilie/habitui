@@ -14,10 +14,8 @@ from rich.console import Console
 
 
 # ─── Configuration & Types ─────────────────────────────────────────────────────
-
 ThemeData = dict[str, str]
 StyleMapping = dict[str, Style]
-
 DEFAULT_THEMES_JSON_PATH = Path(__file__).parent / "themes.json"
 
 
@@ -27,8 +25,6 @@ def ensure_true_color() -> None:
 
 
 # ─── Style Mapper ──────────────────────────────────────────────────────────────
-
-
 class StyleMapper:
     """Creates rich Style mappings from theme color data."""
 
@@ -54,7 +50,6 @@ class StyleMapper:
             "yellow": "#f6c177",
         },
     }
-
     STYLE_FALLBACKS: dict[str, str] = {
         "primary": "bold blue",
         "secondary": "cyan",
@@ -85,7 +80,6 @@ class StyleMapper:
         "log.separator": "blue",
         "log.module": "dim blue",
     }
-
     COLOR_MAPPINGS: dict[str, str] = {
         "primary": "purple",
         "secondary": "cyan",
@@ -122,54 +116,35 @@ class StyleMapper:
         styles: StyleMapping = {}
         bold_styles = {"primary", "error", "table_header", "help.key", "accent"}
         dim_styles = {"muted", "disabled", "dim"}
-
         for style_name, color_field in cls.COLOR_MAPPINGS.items():
             color_value = theme_data.get(color_field)
             if not color_value:
                 continue
-
             bold = style_name in bold_styles
             dim = style_name in dim_styles
-
             if style_name == "selected":
-                bg_color = (
-                    theme_data.get("selectionBackground")
-                    or theme_data.get("background")
-                    or "#000000"
-                )
-                styles[style_name] = Style(
-                    color=color_value,
-                    bgcolor=bg_color,
-                    bold=True,
-                )
+                bg_color = theme_data.get("selectionBackground") or theme_data.get("background") or "#000000"
+                styles[style_name] = Style(color=color_value, bgcolor=bg_color, bold=True)
             elif style_name == "selected_bg":
                 styles[style_name] = Style(bgcolor=color_value)
             else:
                 styles[style_name] = Style(color=color_value, bold=bold, dim=dim)
-
         styles.update(cls._create_log_styles(theme_data))
         styles.update(cls._create_help_styles(theme_data))
         styles.update(cls._create_ui_styles(theme_data))
-
         return styles
 
     @classmethod
     def _create_log_styles(cls, theme_data: ThemeData) -> StyleMapping:
         """Create specific styles for logging output."""
         return {
-            "log.level.trace": Style(
-                color=cls._get_color(theme_data, "brightBlack"),
-                dim=True,
-            ),
+            "log.level.trace": Style(color=cls._get_color(theme_data, "brightBlack"), dim=True),
             "log.level.debug": Style(color=cls._get_color(theme_data, "brightBlack")),
             "log.level.info": Style(color=cls._get_color(theme_data, "blue")),
             "log.level.success": Style(color=cls._get_color(theme_data, "green")),
             "log.level.warning": Style(color=cls._get_color(theme_data, "yellow")),
             "log.level.error": Style(color=cls._get_color(theme_data, "red")),
-            "log.level.critical": Style(
-                color=cls._get_color(theme_data, "red"),
-                bold=True,
-            ),
+            "log.level.critical": Style(color=cls._get_color(theme_data, "red"), bold=True),
             "log.time": Style(color=cls._get_color(theme_data, "brightBlack")),
             "log.separator": Style(color=cls._get_color(theme_data, "blue")),
             "log.module": Style(color=cls._get_color(theme_data, "purple"), dim=True),
@@ -178,12 +153,7 @@ class StyleMapper:
     @classmethod
     def _create_help_styles(cls, theme_data: ThemeData) -> StyleMapping:
         """Create specific styles for help text."""
-        return {
-            "help.key": Style(color=cls._get_color(theme_data, "purple"), bold=True),
-            "help.description": Style(color=cls._get_color(theme_data, "brightBlack")),
-            "help.title": Style(color=cls._get_color(theme_data, "yellow"), bold=True),
-            "help.section": Style(color=cls._get_color(theme_data, "cyan")),
-        }
+        return {"help.key": Style(color=cls._get_color(theme_data, "purple"), bold=True), "help.description": Style(color=cls._get_color(theme_data, "brightBlack")), "help.title": Style(color=cls._get_color(theme_data, "yellow"), bold=True), "help.section": Style(color=cls._get_color(theme_data, "cyan"))}
 
     @classmethod
     def _create_ui_styles(cls, theme_data: ThemeData) -> StyleMapping:
@@ -191,16 +161,11 @@ class StyleMapper:
         return {
             "panel.border": Style(color=cls._get_color(theme_data, "blue")),
             "panel.title": Style(color=cls._get_color(theme_data, "purple"), bold=True),
-            "table.header": Style(
-                color=cls._get_color(theme_data, "purple"),
-                bold=True,
-            ),
+            "table.header": Style(color=cls._get_color(theme_data, "purple"), bold=True),
             "table.row_even": Style(bgcolor=cls._get_color(theme_data, "background")),
             "table.row_odd": Style(bgcolor=cls._get_color(theme_data, "black")),
             "progress.complete": Style(color=cls._get_color(theme_data, "green")),
-            "progress.remaining": Style(
-                color=cls._get_color(theme_data, "brightBlack"),
-            ),
+            "progress.remaining": Style(color=cls._get_color(theme_data, "brightBlack")),
             "status.good": Style(color=cls._get_color(theme_data, "green")),
             "status.bad": Style(color=cls._get_color(theme_data, "red")),
             "status.neutral": Style(color=cls._get_color(theme_data, "yellow")),
@@ -215,15 +180,11 @@ class StyleMapper:
             "warning": theme_data.get("yellow", "#f6c177"),
             "error": theme_data.get("red", "#eb6f92"),
             "success": theme_data.get("green", "#9ccfd8"),
-            "foreground": theme_data.get(
-                "foreground",
-                theme_data.get("white", "#e0def4"),
-            ),
+            "foreground": theme_data.get("foreground", theme_data.get("white", "#e0def4")),
             "background": theme_data.get("background", "#191724"),
             "surface": theme_data.get("black", "#1f1d2e"),
             "panel": theme_data.get("brightBlack", "#26233a"),
         }
-
         # Only include non-None values
         return {k: v for k, v in color_mapping.items() if v is not None}
 
@@ -235,7 +196,6 @@ class StyleMapper:
         selection_background = theme_data.get("selectionBackground", "#6e6a86")
         border_color = theme_data.get("blue", "#525fb8")
         border_blurred = theme_data.get("brightBlack", "#000000")
-
         return {
             "input-cursor-foreground": background,
             "input-cursor-background": foreground,
@@ -263,39 +223,26 @@ class ConsoleManager:
         """Load theme definitions from the JSON file, with caching."""
         if self._themes is not None:
             return self._themes
-
         try:
             if not self.themes_file_path.exists():
                 log.warning(f"Theme file not found: {self.themes_file_path}")
                 self._themes = StyleMapper.DEFAULT_THEME.copy()
-
                 return self._themes
-
             with self.themes_file_path.open(encoding="utf-8") as f:
                 data = json.load(f)
-
             raw_themes = data.get("themes", data)
-            all_themes = {
-                key: value.get("colors", value)
-                for key, value in raw_themes.items()
-                if isinstance(value, dict)
-            }
-
+            all_themes = {key: value.get("colors", value) for key, value in raw_themes.items() if isinstance(value, dict)}
             if not all_themes:
                 log.warning("No valid themes found in JSON, using default.")
                 all_themes = StyleMapper.DEFAULT_THEME.copy()
-
             self._themes = all_themes
-
         except json.JSONDecodeError as e:
             log.error(f"Error parsing theme JSON: {e}")
             self._themes = StyleMapper.DEFAULT_THEME.copy()
-
             return self._themes
         except Exception as e:
             log.opt(exception=True).error(f"Unexpected error loading themes: {e}")
             self._themes = StyleMapper.DEFAULT_THEME.copy()
-
             return self._themes
         else:
             return all_themes
@@ -304,18 +251,11 @@ class ConsoleManager:
         """Create a rich Theme object from a loaded theme name."""
         themes = self._load_themes()
         theme_data = themes.get(theme_name)
-
         if not theme_data:
             log.warning(f"Theme '{theme_name}' not found, using fallbacks.")
-            fallback_styles = {
-                name: Style.parse(style)
-                for name, style in StyleMapper.STYLE_FALLBACKS.items()
-            }
-
+            fallback_styles = {name: Style.parse(style) for name, style in StyleMapper.STYLE_FALLBACKS.items()}
             return Theme(fallback_styles)
-
         styles = StyleMapper.create_styles_from_theme(theme_data)
-
         for style_name, fallback in StyleMapper.STYLE_FALLBACKS.items():
             if style_name not in styles:
                 try:
@@ -323,34 +263,21 @@ class ConsoleManager:
                 except Exception as e:
                     log.error(f"Error creating fallback style '{style_name}': {e}")
                     styles[style_name] = Style()
-
         return Theme(styles)
 
     def create_console(self, theme_name: str = "rose_pine") -> Console:
         """Create a new rich Console with the specified theme."""
         ensure_true_color()
-
         theme = self.create_theme(theme_name)
-
-        return Console(
-            theme=theme,
-            color_system="auto",
-            highlight=True,
-            markup=True,
-            emoji=True,
-            force_terminal=True,
-            soft_wrap=True,
-        )
+        return Console(theme=theme, color_system="auto", highlight=True, markup=True, emoji=True, force_terminal=True, soft_wrap=True)
 
     def switch_theme(self, console: Console, theme_name: str) -> bool:
         """Switches the theme of an existing Console instance."""
         try:
             new_theme = self.create_theme(theme_name)
             console.push_theme(new_theme)
-
         except Exception as e:
             log.opt(exception=True).error(f"Error switching theme: {e}")
-
             return False
         else:
             return True

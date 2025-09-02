@@ -6,7 +6,6 @@ from datetime import timedelta
 
 from sqlmodel import Session, select
 
-from habitui.ui import icons
 from habitui.custom_logger import log
 from habitui.config.app_config import app_config
 from habitui.core.models.party_model import PartyChat, PartyInfo, PartyCollection
@@ -18,8 +17,6 @@ if TYPE_CHECKING:
     from sqlalchemy.sql.expression import ColumnElement
 
     from habitui.core.models import HabiTuiSQLModel
-
-
 TIMEOUT = timedelta(minutes=app_config.cache.live_minutes)
 
 
@@ -27,12 +24,7 @@ TIMEOUT = timedelta(minutes=app_config.cache.live_minutes)
 class PartyVault(BaseVault[PartyCollection]):
     """Vault implementation for managing party-related content."""
 
-    def __init__(
-        self,
-        vault_name: str = "party_vault",
-        db_url: str | None = None,
-        echo: bool = False,
-    ) -> None:
+    def __init__(self, vault_name: str = "party_vault", db_url: str | None = None, echo: bool = False) -> None:
         """Initialize the PartyVault with the appropriate cache timeout.
 
         :param vault_name: The name of this vault instance.
@@ -41,24 +33,13 @@ class PartyVault(BaseVault[PartyCollection]):
         """
         if db_url is None:
             db_url = f"sqlite:///{DATABASE_FILE_NAME}"
-
-        super().__init__(
-            vault_name=vault_name,
-            cache_time=TIMEOUT,
-            db_url=db_url,
-            echo=echo,
-        )
+        super().__init__(vault_name=vault_name, cache_time=TIMEOUT, db_url=db_url, echo=echo)
 
     def get_model_configs(self) -> dict[str, type[HabiTuiSQLModel]]:
         """Return the mapping of content types to their model classes."""
         return {"party": PartyInfo, "chat": PartyChat}
 
-    def save(
-        self,
-        content: PartyCollection,
-        strategy: SaveStrategy = "smart",
-        debug: bool = False,
-    ) -> None:
+    def save(self, content: PartyCollection, strategy: SaveStrategy = "smart", debug: bool = False) -> None:
         """Save party content to the database using a specified strategy.
 
         :param content: A PartyCollection object containing party info and chat messages.
@@ -68,34 +49,13 @@ class PartyVault(BaseVault[PartyCollection]):
         with Session(self.engine) as session:  # type: ignore
             log.info("Starting database sync with '{}' strategy.", strategy)
             if content.party_info:
-                self._save_single_item(
-                    session,
-                    PartyInfo,
-                    content.party_info,
-                    strategy,
-                    "party",
-                    debug,
-                )
+                self._save_single_item(session, PartyInfo, content.party_info, strategy, "party", debug)
             if content.party_chat:
-                self._save_item_list(
-                    session,
-                    PartyChat,
-                    content.party_chat,
-                    strategy,
-                    "chat",
-                    debug=debug,
-                    use_archiving=True,
-                    append_mode=False,
-                )
+                self._save_item_list(session, PartyChat, content.party_chat, strategy, "chat", debug=debug, use_archiving=True)
             session.commit()
             log.info("Database sync completed.")
 
-    def save_recent_chats(
-        self,
-        recent_chats: list[PartyChat],
-        strategy: SaveStrategy = "smart",
-        debug: bool = False,
-    ) -> None:
+    def save_recent_chats(self, recent_chats: list[PartyChat], strategy: SaveStrategy = "smart", debug: bool = False) -> None:
         """Save recent chats without affecting older, preserved chat messages.
 
         :param recent_chats: A list of new or updated chat messages.
@@ -103,15 +63,7 @@ class PartyVault(BaseVault[PartyCollection]):
         :param debug: If True, enables detailed logging for changes.
         """
         with Session(self.engine) as session:  # type: ignore
-            self._save_item_list(
-                session,
-                PartyChat,
-                recent_chats,
-                strategy,
-                "chat",
-                debug=debug,
-                append_mode=True,
-            )
+            self._save_item_list(session, PartyChat, recent_chats, strategy, "chat", debug=debug, append_mode=True)
             session.commit()
 
     def load(self) -> PartyCollection:
@@ -139,10 +91,7 @@ class PartyVault(BaseVault[PartyCollection]):
         with Session(self.engine) as session:  # type: ignore
             position_col = cast("ColumnElement", PartyChat.position)
             query = (
-                select(PartyChat)
-                .where(PartyChat.position < self.ARCHIVE_POSITION_START)  # type: ignore
-                .order_by(position_col)
-                .limit(limit)
+                select(PartyChat).where(PartyChat.position < self.ARCHIVE_POSITION_START).order_by(position_col).limit(limit)  # type: ignore
             )  # type: ignore
             return list(session.exec(query).all())
 
@@ -155,12 +104,7 @@ class PartyVault(BaseVault[PartyCollection]):
         with Session(self.engine) as session:  # type: ignore
             position_col = cast("ColumnElement", PartyChat.position)
             chats_to_archive = list(
-                session.exec(
-                    select(PartyChat)
-                    .where(PartyChat.position < self.ARCHIVE_POSITION_START)  # type: ignore
-                    .order_by(position_col.desc())
-                    .offset(keep_count),
-                ).all(),
+                session.exec(select(PartyChat).where(PartyChat.position < self.ARCHIVE_POSITION_START).order_by(position_col.desc()).offset(keep_count)).all(),  # type: ignore
             )  # type: ignore
             if not chats_to_archive:
                 log.info("No old chats found to archive.")
@@ -176,23 +120,13 @@ class PartyVault(BaseVault[PartyCollection]):
         """Print a comprehensive inspection report for party data."""
         super().inspect_data()
         with Session(self.engine) as session:  # type: ignore
-            log.info(f"\n{icons.GROUP} PARTY INFO:")
+            log.info("PARTY INFO:")
             party = session.exec(select(PartyInfo)).first()
             if party:
-                log.info(
-                    "  • Key: {} | Name: {}",
-                    party.id,
-                    getattr(party, "name", "N/A"),
-                )
+                log.info("  • Key: {} | Name: {}", party.id, getattr(party, "name", "N/A"))
             else:
                 log.info("  • No party data found.")
-
-            log.info(f"\n{icons.BUBBLE} ACTIVE CHATS (first 5):")
+            log.info("ACTIVE CHATS (first 5):")
             for chat in self.get_active_chats(limit=5):
                 text_preview = getattr(chat, "text", "")[:50]
-                log.info(
-                    "  • {} [pos: {}] {}...",
-                    chat.id,
-                    getattr(chat, "position", "N/A"),
-                    text_preview,
-                )
+                log.info("  • {} [pos: {}] {}...", chat.id, getattr(chat, "position", "N/A"), text_preview)

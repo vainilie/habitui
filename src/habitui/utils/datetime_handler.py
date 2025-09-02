@@ -17,14 +17,11 @@ SECONDS_IN_DAY: int = 86400
 
 
 # ─── DateTimeHandler Class ─────────────────────────────────────────────────────
-
-
 class DateTimeHandler(BaseModel):
     """Handle various datetime formats and provides convenient conversions."""
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
     MILLISECONDS_TIMESTAMP_THRESHOLD: int = 2_000_000_000
-
     timestamp: str | datetime | int | float | None = Field(default=None)
     _local_timezone: tzinfo = PrivateAttr(default_factory=tzlocal)
 
@@ -34,31 +31,17 @@ class DateTimeHandler(BaseModel):
         """Convert the timestamp to a UTC datetime object."""
         if self.timestamp is None:
             return None
-
         try:
             if isinstance(self.timestamp, datetime):
                 if self.timestamp.tzinfo is None:
                     return self.timestamp.replace(tzinfo=UTC)
-
                 return self.timestamp.astimezone(UTC)
-
             if isinstance(self.timestamp, int | float):
-                ts_seconds = (
-                    self.timestamp / 1000
-                    if abs(self.timestamp) > self.MILLISECONDS_TIMESTAMP_THRESHOLD
-                    else self.timestamp
-                )
-
+                ts_seconds = self.timestamp / 1000 if abs(self.timestamp) > self.MILLISECONDS_TIMESTAMP_THRESHOLD else self.timestamp
                 return datetime.fromtimestamp(ts_seconds, tz=UTC)
-
             if isinstance(self.timestamp, str):
                 dt_parsed = dateutil.parser.isoparse(self.timestamp)
-                return (
-                    dt_parsed.replace(tzinfo=UTC)
-                    if dt_parsed.tzinfo is None
-                    else dt_parsed.astimezone(UTC)
-                )
-
+                return dt_parsed.replace(tzinfo=UTC) if dt_parsed.tzinfo is None else dt_parsed.astimezone(UTC)
         except (ValueError, OverflowError) as e:
             log.warning("Could not parse timestamp '{}': {}", self.timestamp, e)
         except TypeError as e:
@@ -67,7 +50,6 @@ class DateTimeHandler(BaseModel):
                 type(self.timestamp).__name__,
                 e,
             )
-
         return None
 
     @computed_field
@@ -76,7 +58,6 @@ class DateTimeHandler(BaseModel):
         """Convert the UTC datetime to the local timezone."""
         if self.utc_datetime:
             return self.utc_datetime.astimezone(self._local_timezone)
-
         return None
 
     @classmethod
@@ -126,7 +107,6 @@ class DateTimeHandler(BaseModel):
         """
         if self.utc_datetime:
             return self.utc_datetime < datetime.now(UTC)
-
         return None
 
     def format_time_difference(self) -> str:
@@ -137,24 +117,19 @@ class DateTimeHandler(BaseModel):
         """
         if not self.local_datetime:
             return "N/A"
-
         delta = self.local_datetime - datetime.now(self._local_timezone)
         seconds = abs(delta.total_seconds())
-
         if seconds < SECONDS_IN_MINUTE:
             return "now"
-
         days, remainder = divmod(seconds, SECONDS_IN_DAY)
         hours, remainder = divmod(remainder, SECONDS_IN_HOUR)
         minutes, _ = divmod(remainder, SECONDS_IN_MINUTE)
-
         if days >= 1:
             time_str = f"{int(days)}d"
         elif hours >= 1:
             time_str = f"{int(hours)}h"
         else:
             time_str = f"{int(minutes)}m"
-
         return f"{time_str} ago" if delta.total_seconds() < 0 else f"in {time_str}"
 
     def format_local(self, fmt: str = "%Y-%m-%d %H:%M") -> str:
@@ -166,7 +141,6 @@ class DateTimeHandler(BaseModel):
         """
         if self.local_datetime:
             return self.local_datetime.strftime(fmt)
-
         return "N/A"
 
     def format_utc(self, fmt: str = "%Y-%m-%d %H:%M %Z") -> str:
@@ -178,7 +152,6 @@ class DateTimeHandler(BaseModel):
         """
         if self.utc_datetime:
             return self.utc_datetime.strftime(fmt)
-
         return "N/A"
 
     def format_with_diff(self, date_fmt: str = "%Y-%m-%d %H:%M:%S") -> str:
@@ -189,10 +162,8 @@ class DateTimeHandler(BaseModel):
         :returns: Formatted string like "YYYY-MM-DD HH:MM:SS (X ago)".
         """
         local_time_str = self.format_local(date_fmt)
-
         if local_time_str == "N/A":
             return "N/A"
-
         diff_str = self.format_time_difference()
         return f"{local_time_str} ({diff_str})"
 
@@ -204,7 +175,6 @@ class DateTimeHandler(BaseModel):
         """
         if self.utc_datetime:
             return self.utc_datetime.isoformat().replace("+00:00", "Z")
-
         return None
 
     def to_unix_ms(self) -> int | None:
@@ -215,7 +185,6 @@ class DateTimeHandler(BaseModel):
         """
         if self.utc_datetime:
             return int(self.utc_datetime.timestamp() * 1000)
-
         return None
 
     def to_unix_seconds(self) -> float | None:
@@ -226,7 +195,6 @@ class DateTimeHandler(BaseModel):
         """
         if self.utc_datetime:
             return self.utc_datetime.timestamp()
-
         return None
 
     @staticmethod

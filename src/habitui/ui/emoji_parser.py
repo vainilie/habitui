@@ -742,10 +742,8 @@ EMOJI_MAPPING: dict[str, str] = {
 def parse_emoji_text(text: str) -> str:
     """Simplify compound emojis via iterative replacement."""
     processed_text = text
-
     for emoji_compound, emoji_simple in EMOJI_MAPPING.items():
         processed_text = processed_text.replace(emoji_compound, emoji_simple)
-
     return processed_text
 
 
@@ -762,5 +760,4 @@ def parse_emoji_text_optimized(text: str) -> str:
 
     # Create a regex pattern from all compound emoji keys
     pattern = "|".join(re.escape(emoji) for emoji in EMOJI_MAPPING)
-
     return re.sub(pattern, replace_emoji, text)

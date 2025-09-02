@@ -369,7 +369,7 @@ class HabiticaAPI:
         """
         return await self.get("/content")
 
-    async def get_anonymized_user_data(self, *, full_response: bool = False) -> SuccessfulResponseData | HabiticaResponse:
+    async def get_anonymized_user_data(self, *, full_response: bool = False) -> SuccessfulResponseData:
         """Fetch the current anonymized user's data.
 
         :param full_response: If True, returns the full HabiticaResponse object.

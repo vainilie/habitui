@@ -15,9 +15,7 @@ from .ui.console import console
 
 if TYPE_CHECKING:
     from collections.abc import Callable
-
 # ─── Configuration ─────────────────────────────────────────────────────────────
-
 LEVEL_CONFIG: dict[str, dict[str, str]] = {
     "TRACE": {"icon": "󱐋", "color": "#908caa"},
     "DEBUG": {"icon": "󱏿", "color": "#6e6a86"},
@@ -30,16 +28,11 @@ LEVEL_CONFIG: dict[str, dict[str, str]] = {
 
 
 # ─── Utility Functions ─────────────────────────────────────────────────────────
-
-
 def get_project_root() -> Path:
     """Discover the project root directory by searching for marker files."""
     current_path = Path.cwd()
     for parent in [current_path, *current_path.parents]:
-        if any(
-            (parent / marker).exists()
-            for marker in ["pyproject.toml", "setup.py", ".git"]
-        ):
+        if any((parent / marker).exists() for marker in ["pyproject.toml", "setup.py", ".git"]):
             return parent
     return current_path
 
@@ -52,6 +45,33 @@ def get_log_dir() -> Path:
 
 
 # ─── Logger Class ──────────────────────────────────────────────────────────────
+def _setup_stdlib_logging() -> None:
+    """Integrate standard Python logging with Loguru."""
+
+    class LoguruHandler(logging.Handler):
+        """Routes standard logging messages through Loguru."""
+
+        def emit(self, record: logging.LogRecord) -> None:
+            """Emit a log record."""
+            try:
+                level = logger.level(record.levelname).name
+            except ValueError:
+                level = record.levelno
+            # Find the caller's frame to correctly attribute the log source
+            frame = logging.currentframe()
+            depth = 2
+            while frame and frame.f_code.co_filename == logging.__file__:
+                frame = frame.f_back
+                depth += 1
+            logger.opt(depth=depth, exception=record.exc_info).log(
+                level,
+                record.getMessage(),
+            )
+
+    logging.basicConfig(handlers=[LoguruHandler()], level=0, force=True)
+    # Suppress verbose output from third-party libraries
+    for name in ["httpx", "httpcore", "urllib3", "requests", "asyncio"]:
+        logging.getLogger(name).setLevel(logging.WARNING)
 
 
 class MinimalLogger:
@@ -62,7 +82,6 @@ class MinimalLogger:
         self._configured: bool = False
         self.console: Any = console
         self.path: Path = get_log_dir()
-
         self.setup()
 
     def setup(
@@ -84,9 +103,7 @@ class MinimalLogger:
         """
         if self._configured:
             return
-
         logger.remove()  # Remove default handler
-
         logger.add(
             sink=self._console_sink,  # type: ignore
             level=console_level,
@@ -95,7 +112,6 @@ class MinimalLogger:
             backtrace=False,
             diagnose=False,
         )  # type: ignore
-
         log_path = self.path / log_file
         logger.add(
             sink=log_path,
@@ -108,8 +124,7 @@ class MinimalLogger:
             compression="zip",
             encoding="utf-8",
         )
-
-        self._setup_stdlib_logging()
+        _setup_stdlib_logging()
         self._configured = True
 
     def _console_sink(self, message: dict[str, Any]) -> None:
@@ -119,9 +134,7 @@ class MinimalLogger:
         module_str = record["module"]
         level_name = record["level"].name
         message_text = record["message"]
-
         level_config = LEVEL_CONFIG.get(level_name, {"icon": "•", "color": "white"})
-
         time_part = Text(time_str, style="log.time")
         separator = Text("|", style="log.separator")
         module_part = Text(f"{module_str}", style="log.module")
@@ -133,7 +146,6 @@ class MinimalLogger:
             message_text,
             style=f"log.level.{level_name.lower()}",
         )
-
         self.console.print(
             time_part,
             separator,
@@ -144,40 +156,12 @@ class MinimalLogger:
             end="\n",
         )
 
-    def _setup_stdlib_logging(self) -> None:
-        """Integrate standard Python logging with Loguru."""
-
-        class LoguruHandler(logging.Handler):
-            """Routes standard logging messages through Loguru."""
-
-            def emit(self, record: logging.LogRecord) -> None:
-                """Emit a log record."""
-                try:
-                    level = logger.level(record.levelname).name
-                except ValueError:
-                    level = record.levelno
-
-                # Find the caller's frame to correctly attribute the log source
-                frame = logging.currentframe()
-                depth = 2
-                while frame and frame.f_code.co_filename == logging.__file__:
-                    frame = frame.f_back
-                    depth += 1
-
-                logger.opt(depth=depth, exception=record.exc_info).log(
-                    level,
-                    record.getMessage(),
-                )
-
-        logging.basicConfig(handlers=[LoguruHandler()], level=0, force=True)
-
-        # Suppress verbose output from third-party libraries
-        # for name in ["httpx", "httpcore", "urllib3", "requests", "asyncio"]:
-        # logging.getLogger(name).setLevel(logging.WARNING)
+    @property
+    def configured(self) -> bool:
+        return self._configured
 
 
 # ─── Global Logger Instance and Helper Functions ───────────────────────────────
-
 logger_instance = MinimalLogger()
 
 
@@ -201,10 +185,8 @@ def setup_logging(
 def get_logger() -> Any:
     """Get the configured Loguru logger instance."""
     folder_path = get_log_dir()
-
     if not folder_path.exists():
         folder_path.mkdir(parents=True, exist_ok=True)
-
     return logger
 
 
@@ -219,7 +201,6 @@ def logged(func: Callable) -> Callable:
     def wrapper(*args: Any, **kwargs: Any) -> Any:
         func_name = f"[i white]{func.__module__}.{func.__name__}[/i white]"
         logger.debug(f"→ Calling {func_name}")
-
         try:
             result = func(*args, **kwargs)
             logger.debug(f"{LEVEL_CONFIG['INFO']['icon']}  Completed {func_name}")
@@ -248,12 +229,11 @@ def add_textual_sink(textual_widget: Any, level: str = "TRACE") -> int:
         msg = record["message"]
         level_config = LEVEL_CONFIG.get(level_name, {"icon": "•", "color": "#908caa"})
         formatted_message = f"{time_str}│{level_config['icon']:<3}{msg}"
-
         textual_widget.write(formatted_message)
 
     return logger.add(textual_sink, level=level, format="{message}")  # type: ignore
 
 
-if not logger_instance._configured:  # noqa: SLF001
+if not logger_instance.configured:
     setup_logging()
 log = logger

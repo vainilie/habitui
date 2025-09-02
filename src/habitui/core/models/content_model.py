@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Any, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar
 
 from box import Box
 from pydantic import (
@@ -21,7 +21,8 @@ from .validators import PydanticJSON, replace_emoji_shortcodes
 
 
 T_ContentItem = TypeVar("T_ContentItem", bound="GameContentItem")
-SuccessfulResponseData = dict[str, Any] | list[dict[str, Any]] | list[Any] | None
+if TYPE_CHECKING:
+    from habitui.core.client.api_models import SuccessfulResponseData
 
 
 # ─── Base Item Model ──────────────────────────────────────────────────────────

@@ -6,35 +6,22 @@ from datetime import timedelta
 
 from sqlmodel import Session, select
 
-from habitui.ui import icons
 from habitui.custom_logger import log
 from habitui.config.app_config import app_config
-from habitui.core.models.content_model import (
-    GearItem,
-    QuestItem,
-    SpellItem,
-    ContentCollection,
-)
+from habitui.core.models.content_model import GearItem, QuestItem, SpellItem, ContentCollection
 
 from .base_vault import DATABASE_FILE_NAME, BaseVault, SaveStrategy
 
 
 if TYPE_CHECKING:
     from habitui.core.models import HabiTuiSQLModel
-
-
 TIMEOUT = timedelta(days=app_config.cache.content_days)
 
 
 class ContentVault(BaseVault[ContentCollection]):
     """Manage storage and retrieval of game content."""
 
-    def __init__(
-        self,
-        vault_name: str = "content_vault",
-        db_url: str | None = None,
-        echo: bool = False,
-    ) -> None:
+    def __init__(self, vault_name: str = "content_vault", db_url: str | None = None, echo: bool = False) -> None:
         """Initialize the ContentVault with the appropriate cache timeout.
 
         :param vault_name: The name of this vault instance.
@@ -43,23 +30,13 @@ class ContentVault(BaseVault[ContentCollection]):
         """
         if db_url is None:
             db_url = f"sqlite:///{DATABASE_FILE_NAME}"
-        super().__init__(
-            vault_name=vault_name,
-            cache_time=TIMEOUT,
-            db_url=db_url,
-            echo=echo,
-        )
+        super().__init__(vault_name=vault_name, cache_time=TIMEOUT, db_url=db_url, echo=echo)
 
     def get_model_configs(self) -> dict[str, type[HabiTuiSQLModel]]:
         """Return the mapping of content types to their model classes."""
         return {"gear": GearItem, "spells": SpellItem, "quests": QuestItem}
 
-    def save(
-        self,
-        content: ContentCollection,
-        strategy: SaveStrategy = "smart",
-        debug: bool = False,
-    ) -> None:
+    def save(self, content: ContentCollection, strategy: SaveStrategy = "smart", debug: bool = False) -> None:
         """Save all game content from a ContentCollection to the database.
 
         :param content: A ContentCollection object containing game data.
@@ -68,33 +45,18 @@ class ContentVault(BaseVault[ContentCollection]):
         """
         with Session(self.engine) as session:  # pyright: ignore[reportGeneralTypeIssues]
             log.info("Starting database sync with '{}' strategy.", strategy)
-            content_map: dict[str, Any] = {
-                "gear": content.gear.values(),
-                "spells": content.spells.values(),
-                "quests": content.quests.values(),
-            }
+            content_map: dict[str, Any] = {"gear": content.gear.values(), "spells": content.spells.values(), "quests": content.quests.values()}
             for name, model_cls in self.get_model_configs().items():
                 items = content_map.get(name, [])
                 if items:
-                    self._save_item_list(
-                        session,
-                        model_cls,
-                        items,
-                        strategy,
-                        name,
-                        debug,
-                    )
+                    self._save_item_list(session, model_cls, items, strategy, name, debug)
             session.commit()
             log.info("Database sync completed.")
 
     def load(self) -> ContentCollection:
         """Load all game content from the database into a ContentCollection."""
         with Session(self.engine) as session:  # pyright: ignore[reportGeneralTypeIssues]
-            return ContentCollection(
-                gear={item.key: item for item in session.exec(select(GearItem))},
-                spells={item.key: item for item in session.exec(select(SpellItem))},
-                quests={item.key: item for item in session.exec(select(QuestItem))},
-            )
+            return ContentCollection(gear={item.key: item for item in session.exec(select(GearItem))}, spells={item.key: item for item in session.exec(select(SpellItem))}, quests={item.key: item for item in session.exec(select(QuestItem))})
 
     def search_gear(self, term: str, limit: int = 10) -> list[GearItem]:
         """Search for gear items by a given term.
@@ -127,16 +89,16 @@ class ContentVault(BaseVault[ContentCollection]):
         """Print a comprehensive inspection report for all game content."""
         super().inspect_data()
         with Session(self.engine) as session:  # pyright: ignore[reportGeneralTypeIssues]
-            log.info(f"\n{icons.INFO} SAMPLE GEAR (first 5):")
+            log.info("SAMPLE GEAR (first 5):")
             for item in session.exec(select(GearItem).limit(5)):
                 stats = f"STR+{item.strength}, INT+{item.intelligence}"
                 log.info("  • {} [{}] ({})", item.text, item.type or "?", stats)
-            log.info(f"\n{icons.INFO} SAMPLE QUESTS (first 5):")
+            log.info("SAMPLE QUESTS (first 5):")
             for quest in session.exec(select(QuestItem).limit(5)):
                 log.info("  • {}", quest.text)
                 if quest.is_boss_quest:
                     log.info("    Boss: {} (HP: {})", quest.boss_name, quest.boss_hp)
-            log.info(f"\n{icons.INFO} SAMPLE SPELLS (first 5):")
+            log.info("SAMPLE SPELLS (first 5):")
             for spell in session.exec(select(SpellItem).limit(5)):
                 log.info("  • {} [{}]", spell.text, spell.klass or "?")
                 log.info("    Level: {} | Mana: {}", spell.level, spell.mana)
@@ -155,9 +117,7 @@ class ContentVault(BaseVault[ContentCollection]):
         if all_issues:
             log.warning("Data integrity check found {} total issues.", len(all_issues))
         else:
-            log.info(
-                f"{icons.CHECK} Detailed data integrity check passed with no issues.",
-            )
+            log.success("Detailed data integrity check passed with no issues.")
         return all_issues
 
     def _validate_gear_items(self, session: Session) -> list[str]:
@@ -171,9 +131,7 @@ class ContentVault(BaseVault[ContentCollection]):
             if not item.text or not item.text.strip():
                 issues.append(f"[Gear] Item '{item.key}' has empty text.")
             if item.value < 0:
-                issues.append(
-                    f"[Gear] Item '{item.key}' has negative value: {item.value}.",
-                )
+                issues.append(f"[Gear] Item '{item.key}' has negative value: {item.value}.")
         return issues
 
     def _validate_quest_items(self, session: Session) -> list[str]:
@@ -187,9 +145,7 @@ class ContentVault(BaseVault[ContentCollection]):
             if not quest.text or not quest.text.strip():
                 issues.append(f"[Quest] Item '{quest.key}' has empty text.")
             if quest.is_boss_quest and (quest.boss_hp is None or quest.boss_hp <= 0):
-                issues.append(
-                    f"[Quest] Boss quest '{quest.key}' has invalid HP: {quest.boss_hp}.",
-                )
+                issues.append(f"[Quest] Boss quest '{quest.key}' has invalid HP: {quest.boss_hp}.")
         return issues
 
     def _validate_spell_items(self, session: Session) -> list[str]:
@@ -203,7 +159,5 @@ class ContentVault(BaseVault[ContentCollection]):
             if not spell.text or not spell.text.strip():
                 issues.append(f"[Spell] Item '{spell.key}' has empty text.")
             if spell.mana < 0:
-                issues.append(
-                    f"[Spell] Item '{spell.key}' has negative mana: {spell.mana}.",
-                )
+                issues.append(f"[Spell] Item '{spell.key}' has negative mana: {spell.mana}.")
         return issues

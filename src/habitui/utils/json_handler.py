@@ -71,7 +71,7 @@ def load_json(
         log.warning("JSON file not found at: '{}'", input_path)
         return None
     try:
-        with input_path.open("r", encoding="utf-8") as f:
+        with input_path.open(encoding="utf-8") as f:
             return json.load(f)
     except (OSError, json.JSONDecodeError) as e:
         log.error("Failed to load or parse JSON from '{}'. Error: {}", input_path, e)
@@ -109,11 +109,7 @@ def save_pydantic_model(
 
 
 # ─── Load Model ───────────────────────────────────────────────────────────────
-def load_pydantic_model[T: BaseModel](
-    model_class: type[T],
-    filepath: str | Path,
-    folder: str | Path | None = None,
-) -> T | None:
+def load_pydantic_model[T: BaseModel](model_class: type[T], filepath: str | Path, folder: str | Path | None = None) -> T | None:
     """Load a JSON file into a Pydantic model instance.
 
     :param model_class: The Pydantic model class (e.g., User).

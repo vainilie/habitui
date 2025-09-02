@@ -25,43 +25,24 @@ class IconStyle(StrEnum):
 # ─── Initialization ────────────────────────────────────────────────────────────
 theme_manager = ConsoleManager()
 console = theme_manager.create_console("rose_pine")
-icons = Icons.simple
-
-install_rich_traceback(
-    console=console,
-    show_locals=False,
-    word_wrap=True,
-    extra_lines=3,
-    suppress=[],
-)
+install_rich_traceback(console=console, show_locals=False, word_wrap=True, extra_lines=3, suppress=[])
 
 
 # ─── Core Functions ────────────────────────────────────────────────────────────
 def switch_theme(name: str) -> None:
     """Switch the active console theme."""
     global console  # noqa: PLW0603
-
     if not theme_manager.switch_theme(console, name):
         available = theme_manager.get_available_themes()
         msg = f"Theme '{name}' not found. Available: {available}"
-
         raise ValueError(msg)
-
     console = theme_manager.create_console(name)
 
 
 def switch_icons(style: IconStyle) -> None:
     """Switch the active icon set."""
     global icons  # noqa: PLW0603
-
-    icon_map = {
-        IconStyle.SIMPLE: Icons.simple,
-        IconStyle.CIRCLE: Icons.circle,
-        IconStyle.SQUARE: Icons.square,
-        IconStyle.CIRCLE_OUTLINE: Icons.circle_outline,
-        IconStyle.SQUARE_OUTLINE: Icons.square_outline,
-    }
-
+    icon_map = {IconStyle.SIMPLE: Icons.simple, IconStyle.CIRCLE: Icons.circle, IconStyle.SQUARE: Icons.square, IconStyle.CIRCLE_OUTLINE: Icons.circle_outline, IconStyle.SQUARE_OUTLINE: Icons.square_outline}
     icons = icon_map[style]
 
 
@@ -70,10 +51,8 @@ def get_style_obj_with_console(style_name: str) -> Style:
     """Safely get a Style object from the console, returning an empty style on failure."""
     try:
         style = console.get_style(style_name)
-
     except Exception:
         style = Style()
-
     return style
 
 

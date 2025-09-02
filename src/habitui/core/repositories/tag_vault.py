@@ -6,7 +6,6 @@ from datetime import timedelta
 
 from sqlmodel import Session, select
 
-from habitui.ui import icons
 from habitui.custom_logger import log
 from habitui.config.app_config import app_config
 from habitui.core.models.tag_model import TagComplex, TagCollection
@@ -18,24 +17,13 @@ if TYPE_CHECKING:
     from sqlalchemy.sql.expression import ColumnElement
 
     from habitui.core.models import HabiTuiSQLModel
-
-
 TIMEOUT = timedelta(minutes=app_config.cache.live_minutes)
 
 
 class TagVault(BaseVault[TagCollection]):
-    """Vault implementation for managing tags and their collections.
+    """Vault implementation for managing tags and their collections."""
 
-    This vault handles the persistence and retrieval of `TagComplex` objects
-    within a `TagCollection`.
-    """
-
-    def __init__(
-        self,
-        vault_name: str = "tag_vault",
-        db_url: str | None = None,
-        echo: bool = False,
-    ) -> None:
+    def __init__(self, vault_name: str = "tag_vault", db_url: str | None = None, echo: bool = False) -> None:
         """Initialize the TagVault with the appropriate cache timeout.
 
         :param vault_name: The name of this vault instance.
@@ -44,13 +32,7 @@ class TagVault(BaseVault[TagCollection]):
         """
         if db_url is None:
             db_url = f"sqlite:///{DATABASE_FILE_NAME}"
-
-        super().__init__(
-            vault_name=vault_name,
-            cache_time=TIMEOUT,
-            db_url=db_url,
-            echo=echo,
-        )
+        super().__init__(vault_name=vault_name, cache_time=TIMEOUT, db_url=db_url, echo=echo)
 
     def get_model_configs(self) -> dict[str, type[HabiTuiSQLModel]]:
         """Return the mapping of content types to their model classes for tags.
@@ -59,17 +41,8 @@ class TagVault(BaseVault[TagCollection]):
         """
         return {"tag": TagComplex}
 
-    def save(
-        self,
-        content: TagCollection,
-        strategy: SaveStrategy = "smart",
-        debug: bool = False,
-    ) -> None:
+    def save(self, content: TagCollection, strategy: SaveStrategy = "smart", debug: bool = False) -> None:
         """Save tag content to the database using a specified strategy.
-
-        Only `TagComplex` objects within the `TagCollection` are persisted.
-        In-memory `ParentTag` and `SubTag` objects are not directly saved by this method,
-        as they are typically reconstructed from `TagComplex` data.
 
         :param content: A `TagCollection` object containing tags to be saved.
         :param strategy: The save strategy ('smart', 'incremental', 'force_recreate').
@@ -77,31 +50,14 @@ class TagVault(BaseVault[TagCollection]):
         """
         with Session(self.engine) as session:  # type: ignore
             log.info("Starting tags database sync with '{}' strategy.", strategy)
-
             tags = content.tags
-
             if tags:
-                self._save_item_list(
-                    session,
-                    TagComplex,
-                    tags,
-                    strategy,
-                    "tags",
-                    debug=debug,
-                    use_archiving=False,
-                    append_mode=False,
-                )
-
+                self._save_item_list(session, TagComplex, tags, strategy, "tags", debug=debug)
             session.commit()
             log.info("Tags database sync completed.")
 
     def load(self) -> TagCollection:
         """Load all `TagComplex` objects from the database and reconstructs a `TagCollection`.
-
-        This method retrieves all `TagComplex` instances, ordered by their position,
-        and uses them to initialize a `TagCollection`. If in-memory `ParentTag`
-        and `SubTag` objects are required, additional logic within the `TagCollection`
-        or a factory should handle their reconstruction from the loaded `TagComplex` data.
 
         :return: A `TagCollection` object containing all stored tags.
         """
@@ -112,23 +68,13 @@ class TagVault(BaseVault[TagCollection]):
             return TagCollection(tags=stored_tags)
 
     def inspect_data(self) -> None:
-        """Print a comprehensive inspection report for tag data.
-
-        This method overrides the base `inspect_data` to provide specific
-        insights into the `TagComplex` data stored in the vault.
-        """
+        """Print a comprehensive inspection report for tag data."""
         super().inspect_data()
         with Session(self.engine) as session:  # type: ignore
-            log.info(f"\n{icons.TAGS} TAGS INFO:")
+            log.info("TAGS INFO:")
             all_tags = session.exec(select(TagComplex)).all()
             if all_tags:
                 for tag in all_tags:
-                    log.info(
-                        "  • ID: {} | Name: {} | Type: {} | Position: {}",
-                        tag.id,
-                        tag.name,
-                        tag.tag_type,
-                        tag.position,
-                    )
+                    log.info("  • ID: {} | Name: {} | Type: {} | Position: {}", tag.id, tag.name, tag.tag_type, tag.position)
             else:
                 log.info("  • No tag data found.")
