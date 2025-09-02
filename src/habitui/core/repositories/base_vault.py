@@ -226,7 +226,7 @@ class BaseVault[T_Collection](ABC):
         self.timeout: timedelta = cache_time
         HabiTuiSQLModel.metadata.create_all(self.engine)
         self._configure_datetime_handling()
-        log.debug(f"[i]{vault_name} vault[/i] initialized {icons.HISTORY} {cache_time}")
+        log.debug(f"[i]{vault_name} vault[/i] initialized {icons.HISTORY}{cache_time}")
 
     def _initialize_vault_metadata(self) -> None:
         """Ensure database tables are ready for the vault."""
@@ -376,15 +376,15 @@ class BaseVault[T_Collection](ABC):
             session.exec(stmt)  # type: ignore
             session.flush()
             session.add(item)
-            log.info(f"{icons.ERASE} {content_name.capitalize()} sync: Recreated table with 1 item")
+            log.info(f"{icons.ERASE}{content_name.capitalize()} sync: Recreated table with 1 item")
         else:
             existing_item = session.get(model_cls, item.id)  # type: ignore
             if existing_item is None:
                 session.add(item)
-                log.info(f"{content_name.capitalize()}: {icons.CREATE} 1")
+                log.info(f"{content_name.capitalize()}: {icons.CREATE}1")
             elif _item_has_changed(existing_item, item, debug):
                 self._update_item_fields(existing_item, item)
-                log.info(f"{content_name.capitalize()}: {icons.RELOAD} 1")
+                log.info(f"{content_name.capitalize()}: {icons.RELOAD}1")
             else:
                 log.info(f"{content_name.capitalize()}: {icons.CHECK}")
         self._update_metadata(session, content_name)
@@ -460,9 +460,9 @@ class BaseVault[T_Collection](ABC):
                 archived_or_deleted = len(obsolete_ids)
                 action = icons.ERASE
         if debug or created > 0 or updated > 0 or archived_or_deleted > 0:
-            log.info(f"{icons.CLIP} {name.capitalize()}: {icons.CREATE}{created} {icons.RELOAD}{updated} {icons.APROX}{unchanged} {action if archived_or_deleted > 0 else ''}{archived_or_deleted if archived_or_deleted > 0 else ''}")
+            log.info(f"{icons.CLIP}{name.capitalize()}: {icons.CREATE}{created} {icons.RELOAD}{updated} {icons.APROX}{unchanged} {action if archived_or_deleted > 0 else ''}{archived_or_deleted if archived_or_deleted > 0 else ''}")
         else:
-            log.info(f"[b]{icons.CHECK} {name.capitalize()}[/]")
+            log.info(f"[b]{icons.CHECK}{name.capitalize()}[/]")
         self._update_metadata(session, name)
 
     def _save_append_mode(self, session: Session, model_cls: type[T_Model], items: list[T_Model], name: str, debug: bool) -> None:  # noqa: ARG002
@@ -497,7 +497,7 @@ class BaseVault[T_Collection](ABC):
                 normalized_item = _normalize_datetime_fields(item)
                 session.merge(normalized_item)
                 updated += 1
-        log.info("{} {} append: {} created, {} updated, {} unchanged", icons.CLIP, name.capitalize(), created, updated, unchanged)
+        log.info("{}{} append: {} created, {} updated, {} unchanged", icons.CLIP, name.capitalize(), created, updated, unchanged)
         self._update_metadata(session, name)
 
     def _force_recreate_save(self, session: Session, model_cls: type[T_Model], items: list[T_Model], name: str) -> None:
@@ -652,7 +652,7 @@ class BaseVault[T_Collection](ABC):
             log.info(f"Vault {icons.HISTORY}: {vault_metadata.last_fetched_at} ({vault_age})")
             log.info("Vault is fresh: {}", icons.CHECK if self.is_vault_fresh() else icons.ERROR)
         stats = self.get_stats()
-        log.info(f"{icons.CHART} Record Counts:")
+        log.info(f"{icons.CHART}Record Counts:")
         for key, count in stats.items():
             log.info(" {}: {}", key.replace("_", " ").capitalize(), count)
         self.validate_data_integrity()
@@ -683,7 +683,7 @@ class BaseVault[T_Collection](ABC):
         if issues:
             log.warning("Data integrity check found {} issues", len(issues))
             for issue in issues:
-                log.warning(f"{icons.SMALL_SQUARE} {issue}")
+                log.warning(f"{icons.SMALL_SQUARE}{issue}")
         else:
             log.debug("Data integrity check passed")
         return issues
@@ -705,7 +705,7 @@ class BaseVault[T_Collection](ABC):
         if not self.is_vault_fresh():
             vault_age = self.get_vault_age()
             if vault_age:
-                issues.append(f"{icons.HISTORY} {self.timeout} ({vault_age})")
+                issues.append(f"{icons.HISTORY}{self.timeout} ({vault_age})")
             else:
                 issues.append("Vault metadata is missing or corrupted")
         # 3. Check data integrity
@@ -718,7 +718,7 @@ class BaseVault[T_Collection](ABC):
             issues.append("Vault metadata is missing")
         is_ready = len(issues) == 0
         if is_ready:
-            log.success(f"{self.vault_name} vault is ready {icons.SMALL_SQUARE} ({total_records} items)")
+            log.success(f"{self.vault_name} vault is ready {icons.SMALL_SQUARE}({total_records} items)")
         else:
             log.warning(f"{self.vault_name} vault has {len(issues)} issues")
             for issue in issues:
