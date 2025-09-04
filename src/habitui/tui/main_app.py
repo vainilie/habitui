@@ -28,11 +28,7 @@ class LoadingScreen(Screen):
             ascii_art = text2art("habiTUI", font="doom")
             yield Static(ascii_art, id="name-banner")  # type: ignore
             yield LoadingIndicator(id="main-loading")
-            yield TextualLogConsole(
-                classes="console",
-                id="loading-console",
-                max_lines=20,
-            )
+            yield TextualLogConsole(classes="console", id="loading-console", max_lines=20)
 
     def on_mount(self) -> None:
         initial_log_console = self.query_one(TextualLogConsole)
@@ -62,17 +58,9 @@ class HabiTUI(App):
         try:
             self.logger.info("Starting vault load...")
             self.vault = DataVault()
-
-            await self.vault.get_data(
-                force=False,
-                debug=True,
-                mode="smart",
-                with_challenges=True,
-            )
-
+            await self.vault.get_data(force=False, debug=True, mode="smart", with_challenges=True)
             self.logger.info("Vault loaded successfully.")
             self.logger.info("Transitioning to MainScreen...")
-
             self.pop_screen()
             self.push_screen("main")
         except Exception as e:

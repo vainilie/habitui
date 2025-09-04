@@ -16,8 +16,6 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from habitui.tui.main_app import HabiTUI
-
-
 ThemeData = dict[str, str]
 
 
@@ -35,39 +33,26 @@ class TextualThemeBridge:
         """Load theme definitions from the JSON file, with caching."""
         if self._themes is not None:
             return self._themes
-
         try:
             if not self.themes_file_path.exists():
                 log.warning(f"Theme file not found: {self.themes_file_path}")
                 self._themes = self.style_mapper.DEFAULT_THEME.copy()
-
                 return self._themes
-
             with self.themes_file_path.open(encoding="utf-8") as f:
                 data = json.load(f)
-
             raw_themes = data.get("themes", data)
-            all_themes = {
-                key: value.get("colors", value)
-                for key, value in raw_themes.items()
-                if isinstance(value, dict)
-            }
-
+            all_themes = {key: value.get("colors", value) for key, value in raw_themes.items() if isinstance(value, dict)}
             if not all_themes:
                 log.warning("No valid themes found in JSON, using default.")
                 all_themes = self.style_mapper.DEFAULT_THEME.copy()
-
             self._themes = all_themes
-
         except json.JSONDecodeError as e:
             log.error(f"Error parsing theme JSON: {e}")
             self._themes = self.style_mapper.DEFAULT_THEME.copy()
-
             return self._themes
         except Exception as e:
             log.opt(exception=True).error(f"Unexpected error loading themes: {e}")
             self._themes = self.style_mapper.DEFAULT_THEME.copy()
-
             return self._themes
         else:
             return all_themes
@@ -76,15 +61,12 @@ class TextualThemeBridge:
         """Convert a JSON theme to a Textual Theme object."""
         themes = self._load_themes()
         theme_data = themes.get(theme_name)
-
         if not theme_data:
             log.warning(f"Theme '{theme_name}' not found, using fallbacks.")
             return None
-
         # Map colors
         colors = self.style_mapper.map_json_to_textual_colors(theme_data=theme_data)
         variables = self.style_mapper.create_textual_variables(theme_data)
-
         # Create Textual theme
         textual_theme = TextualTheme(
             name=theme_data.get("name", theme_name),
@@ -95,29 +77,24 @@ class TextualThemeBridge:
             **colors,
             variables=variables,
         )
-
         # Cache the theme
         self._textual_themes_cache[theme_name] = textual_theme
         log.info(f"Created Textual theme for '{theme_name}'")
-
         return textual_theme
 
     def get_available_themes(self) -> list[str]:
         """Return a list of all available theme names."""
         themes = self._load_themes()
-
         return list(themes.keys())
 
     def get_all_textual_themes(self) -> dict[str, TextualTheme]:
         """Get all available themes as Textual Theme objects."""
         themes = {}
         available_theme_names = self.get_available_themes()
-
         for theme_name in available_theme_names:
             textual_theme = self.json_to_textual_theme(theme_name)
             if textual_theme:
                 themes[theme_name] = textual_theme
-
         return themes
 
 
@@ -142,7 +119,6 @@ class TextualThemeManager:
         for theme_name, theme in textual_themes.items():
             if theme_name != "rose_pine":  # Already registered
                 self.app.register_theme(theme)
-
         log.info(f"Registered {len(textual_themes)} themes from JSON")
 
     def switch_theme(self, theme_name: str) -> None:
@@ -151,6 +127,5 @@ class TextualThemeManager:
             # Switch to the theme
             self.theme = theme_name
             log.info(f"Switched to theme: {theme_name}")
-
         except Exception as e:
             log.error(f"Error switching theme to '{theme_name}': {e}")

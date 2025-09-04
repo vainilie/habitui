@@ -26,15 +26,10 @@ if TYPE_CHECKING:
 
 
 # ─── Main Screen Definition ────────────────────────────────────────────────────
-
-
 class MainScreen(Screen):
     """Main screen of the Habitica TUI application, featuring tabbed content."""
 
-    BINDINGS = [
-        Binding("ctrl+l", "toggle_log", "Toggle Log"),
-        Binding("?", "show_help", "Help"),
-    ]
+    BINDINGS = [Binding("ctrl+l", "toggle_log", "Toggle Log"), Binding("?", "show_help", "Help")]
     total_op: reactive[int] = reactive(0, always_update=True, recompose=True)
 
     def __init__(self) -> None:
@@ -47,16 +42,9 @@ class MainScreen(Screen):
     def compose(self) -> ComposeResult:
         """Composes the main layout of the screen."""
         yield Header(show_clock=True)
-
-        yield Label(
-            f"API Calls: {self.total_op}",
-            id="pending-op-label",
-        )
+        yield Label(f"API Calls: {self.total_op}", id="pending-op-label")
         with Horizontal(id="content-area"):
-            with (
-                Vertical(id="main-container"),
-                TabbedContent(initial="profile"),
-            ):
+            with Vertical(id="main-container"), TabbedContent(initial="profile"):
                 with TabPane("Profile", id="profile"):
                     yield ProfileTab()
                 with TabPane("Party", id="party"):
@@ -73,7 +61,6 @@ class MainScreen(Screen):
                     yield TasksTab()
             with Vertical(id="sidebar", disabled=True):
                 yield TextualLogConsole(id="log-console")
-
         yield Footer()
 
     def action_toggle_log(self) -> None:
@@ -81,12 +68,10 @@ class MainScreen(Screen):
         self.show_sidebar = not self.show_sidebar
         sidebar = self.query_one("#sidebar")
         main_container = self.query_one("#main-container")
-
         if self.show_sidebar:
             sidebar.add_class("visible")
             main_container.add_class("with-sidebar")
             self.app.logger.info("Log sidebar shown")
-
         else:
             sidebar.remove_class("visible")
             main_container.remove_class("with-sidebar")

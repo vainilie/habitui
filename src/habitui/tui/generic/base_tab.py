@@ -1,35 +1,20 @@
 # ─── Textual Imports ───────────────────────────────────────────────────────────
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
 from datetime import datetime
 
 from textual.widget import Widget
-from textual.widgets import Label, ProgressBar
-from textual.containers import Horizontal
 
 from habitui.ui import icons
 
 # ─── Project-Specific Imports ──────────────────────────────────────────────────
 from habitui.core.client import HabiticaClient
-from habitui.custom_logger import log
 from habitui.core.services.data_vault import DataVault
-
-
-if TYPE_CHECKING:
-    from textual.app import ComposeResult
 
 
 # ─── Base Tab Class ────────────────────────────────────────────────────────────
 def _get_class_icon(klass: str) -> str:
-    class_icons = {
-        "wizard": icons.WIZARD,
-        "mage": icons.WIZARD,
-        "healer": icons.HEALER,
-        "warrior": icons.WARRIOR,
-        "rogue": icons.ROGUE,
-        "no class": icons.USER,
-    }
+    class_icons = {"wizard": icons.WIZARD, "mage": icons.WIZARD, "healer": icons.HEALER, "warrior": icons.WARRIOR, "rogue": icons.ROGUE, "no class": icons.USER}
     return class_icons[klass]
 
 

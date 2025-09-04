@@ -1,5 +1,4 @@
 # ♥♥─── Generic Confirmation Modal and Formatters ───────────────────────────
-
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
@@ -22,20 +21,14 @@ if TYPE_CHECKING:
 class GenericConfirmModal(ModalScreen):
     """A reusable confirmation modal that can display changes and custom content."""
 
-    BINDINGS = [
-        Binding("escape", "cancel", "Cancel", show=False),
-        Binding("enter", "confirm", "Confirm", show=False),
-        Binding("y", "confirm", "Yes", show=False),
-        Binding("n", "cancel", "No", show=False),
-    ]
+    BINDINGS = [Binding("escape", "cancel", "Cancel", show=False), Binding("enter", "confirm", "Confirm", show=False), Binding("y", "confirm", "Yes", show=False), Binding("n", "cancel", "No", show=False)]
 
     def __init__(  # noqa: PLR0913, PLR0917
         self,
         question: str,
         changes: dict[str, Any] | None = None,
         title: str = "Confirm Changes",
-        changes_formatter: Callable[[dict[str, Any]], list[tuple[str, str]]]
-        | None = None,
+        changes_formatter: Callable[[dict[str, Any]], list[tuple[str, str]]] | None = None,
         confirm_text: str = "Confirm",
         cancel_text: str = "Cancel",
         confirm_variant: str = "success",
@@ -72,18 +65,12 @@ class GenericConfirmModal(ModalScreen):
         self.icon = icon
 
     @staticmethod
-    def _default_changes_formatter(
-            changes: dict[str, Any],
-    ) -> list[tuple[str, str]]:
+    def _default_changes_formatter(changes: dict[str, Any]) -> list[tuple[str, str]]:
         formatted_changes = []
-
         for key, value in changes.items():
             display_key = key.replace("_", " ").title()
-
             if isinstance(value, str):
-                display_value = (
-                    f"Updated ({len(value)} characters)" if len(value) > 50 else value
-                )
+                display_value = f"Updated ({len(value)} characters)" if len(value) > 50 else value
             elif isinstance(value, (int, float)):
                 display_value = f"{value}:00" if key == "day_start" else str(value)
             elif isinstance(value, bool):
@@ -94,9 +81,7 @@ class GenericConfirmModal(ModalScreen):
                 display_value = f"{len(value)} properties"
             else:
                 display_value = str(value)
-
             formatted_changes.append((display_key, display_value))
-
         return formatted_changes
 
     def compose(self) -> ComposeResult:
@@ -104,10 +89,8 @@ class GenericConfirmModal(ModalScreen):
         with Container(classes="input-confirm"):
             confirm_screen = Vertical(classes="input-confirm-body")
             confirm_screen.border_title = f"{self.icon} {self.modal_title}"
-
             with confirm_screen:
                 yield Label(self.question, classes="changes-question")
-
                 if self.changes:
                     with Vertical(classes="changes-list"):
                         formatted_changes = self.changes_formatter(self.changes)
@@ -115,21 +98,11 @@ class GenericConfirmModal(ModalScreen):
                             with Horizontal(classes="changes-row"):
                                 yield Label(f"• {label}:", classes="changes-label")
                                 yield Label(value, classes="changes-value")
-
                 for x in self.custom_content:
                     yield Label(x)
-
                 with Horizontal(classes="modal-buttons"):
-                    yield Button(
-                        self.cancel_text,
-                        id="cancel",
-                        variant=self.cancel_variant,  # type: ignore
-                    )
-                    yield Button(
-                        self.confirm_text,
-                        id="confirm",
-                        variant=self.confirm_variant,  # type: ignore
-                    )
+                    yield Button(self.cancel_text, id="cancel", variant=self.cancel_variant)  # type: ignore
+                    yield Button(self.confirm_text, id="confirm", variant=self.confirm_variant)  # type: ignore
 
     @on(Button.Pressed, "#cancel")
     def cancel_action(self) -> None:
@@ -153,8 +126,6 @@ class GenericConfirmModal(ModalScreen):
 
 
 # ─── Custom Formatters ─────────────────────────────────────────────────────────
-
-
 class HabiticaChangesFormatter:
     """Specialized formatter for Habitica changes."""
 
@@ -162,96 +133,47 @@ class HabiticaChangesFormatter:
     def format_changes(changes: dict[str, Any]) -> list[tuple[str, str]]:
         """Format Habitica-specific changes for display."""
         formatted = []
-
         if changes.get("name"):
             formatted.append(("Name", changes["name"]))
-
         if "day_start" in changes:
             formatted.append(("Day Start", f"{changes['day_start']}:00"))
-
         if changes.get("bio"):
             formatted.append(("Bio", f"Updated ({len(changes['bio'])} characters)"))
-
         return formatted
 
 
 # ─── Usage Examples ────────────────────────────────────────────────────────────
-
-
 def show_habitica_confirm(changes: dict) -> GenericConfirmModal:
     """Show a confirmation modal for Habitica changes."""
-    return GenericConfirmModal(
-        question="The following changes will be sent to Habitica:",
-        changes=changes,
-        changes_formatter=HabiticaChangesFormatter.format_changes,
-        title="Confirm Changes",
-        icon=icons.QUESTION_MARK,
-    )
+    return GenericConfirmModal(question="The following changes will be sent to Habitica:", changes=changes, changes_formatter=HabiticaChangesFormatter.format_changes, title="Confirm Changes", icon=icons.QUESTION_MARK)
 
 
 def show_delete_confirm(item_name: str) -> GenericConfirmModal:
     """Show a confirmation modal for item deletion."""
-    return GenericConfirmModal(
-        question=f"Are you sure you want to delete '{item_name}'? This action cannot be undone.",
-        title="Confirm Deletion",
-        confirm_text="Delete",
-        cancel_text="Keep",
-        confirm_variant="error",
-        icon=icons.WARNING,
-    )
+    return GenericConfirmModal(question=f"Are you sure you want to delete '{item_name}'? This action cannot be undone.", title="Confirm Deletion", confirm_text="Delete", cancel_text="Keep", confirm_variant="error", icon=icons.WARNING)
 
 
 def show_exit_confirm(unsaved_changes: int) -> GenericConfirmModal:
     """Show a confirmation modal for exiting with unsaved changes."""
-    return GenericConfirmModal(
-        question=f"You have {unsaved_changes} unsaved changes. Do you want to exit without saving?",
-        title="Unsaved Changes",
-        confirm_text="Exit Anyway",
-        cancel_text="Stay",
-        confirm_variant="warning",
-        icon=icons.SAVE,
-    )
+    return GenericConfirmModal(question=f"You have {unsaved_changes} unsaved changes. Do you want to exit without saving?", title="Unsaved Changes", confirm_text="Exit Anyway", cancel_text="Stay", confirm_variant="warning", icon=icons.SAVE)
 
 
 def show_custom_confirm() -> GenericConfirmModal:
     """Show a confirmation modal with custom content."""
-    custom_widgets = [
-        Static(
-            f"{icons.WARNING} This will affect multiple users",
-            classes="warning-text",
-        ),
-        Static(
-            f"{icons.BAR_CHART} Estimated processing time: 5 minutes",
-            classes="info-text",
-        ),
-    ]
-
-    return GenericConfirmModal(
-        question="Do you want to proceed with the bulk operation?",
-        title="Bulk Operation",
-        custom_content=custom_widgets,
-        icon=icons.GEAR,
-    )
+    custom_widgets = [Static(f"{icons.WARNING} This will affect multiple users", classes="warning-text"), Static(f"{icons.BAR_CHART} Estimated processing time: 5 minutes", classes="info-text")]
+    return GenericConfirmModal(question="Do you want to proceed with the bulk operation?", title="Bulk Operation", custom_content=custom_widgets, icon=icons.GEAR)
 
 
 def custom_formatter(changes: dict[str, Any]) -> list[tuple[str, str]]:
     """Add emojis and special formatting."""
     formatted = []
-
     for key, value in changes.items():
         if key == "status":
             emoji = icons.CHECK_MARK if value == "active" else icons.MULTIPLICATION_X
             formatted.append((f"{emoji} Status", value.title()))
         elif key == "priority":
-            emoji = (
-                icons.RED_CIRCLE
-                if value == "high"
-                else icons.YELLOW_CIRCLE
-                if value == "medium"
-                else icons.GREEN_CIRCLE
-            )
+            emoji = icons.RED_CIRCLE if value == "high" else icons.YELLOW_CIRCLE if value == "medium" else icons.GREEN_CIRCLE
             formatted.append((f"{emoji} Priority", value.title()))
         else:
             formatted.append((key.replace("_", " ").title(), str(value)))
-
     return formatted

@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 class SpellSelectionScreen(ModalScreen):
     """Modal screen for selecting spells to cast."""
 
-    def __init__(self, available_spells: list, user_mp: int):
+    def __init__(self, available_spells: list, user_mp: int) -> None:
         """Initialize with available spells and user MP."""
         super().__init__()
         self.available_spells = available_spells
@@ -34,7 +34,6 @@ class SpellSelectionScreen(ModalScreen):
             selection_screen.border_title = f"{icons.WAND} Cast Spell"
             with selection_screen:
                 yield Label("Select a spell to cast:", classes="input-label")
-
                 spell_options = []
                 for spell in self.available_spells:
                     affordable = self.user_mp >= spell.mana
@@ -43,28 +42,14 @@ class SpellSelectionScreen(ModalScreen):
                     spell_cost = icons.MANA + str(spell.mana)
                     spell_target = icons.TARGET + " " + spell.target
                     spell_info = spell.notes
-
                     grid = Table.grid(expand=True, padding=1)
                     grid.add_column()
                     grid.add_column()
                     grid.add_column()
-                    grid.add_row(
-                        f"[green]{status}[/]",
-                        f"[blue]{spell_cost}[/] ",
-                        f"[b]{spell_name}[/b]",
-                    )
-                    grid.add_row(
-                        "",
-                        f"[red]{spell_target}[/]",
-                        f"[dim]{spell_info}[/dim]",
-                    )
-
-                    spell_options.append(
-                        Option(grid, id=spell.key, disabled=not affordable),
-                    )
-
+                    grid.add_row(f"[green]{status}[/]", f"[blue]{spell_cost}[/] ", f"[b]{spell_name}[/b]")
+                    grid.add_row("", f"[red]{spell_target}[/]", f"[dim]{spell_info}[/dim]")
+                    spell_options.append(Option(grid, id=spell.key, disabled=not affordable))
                 yield OptionList(*spell_options, id="spell_list", classes="input-box")
-
                 with Horizontal(classes="modal-buttons"):
                     yield Button("Cancel", id="cancel", variant="default")
                     yield Button("Cast Spell", id="cast", variant="success")
@@ -85,7 +70,6 @@ class SpellSelectionScreen(ModalScreen):
         if not self.selected_spell:
             self.notify("Please select a spell", severity="warning")
             return
-
         self.dismiss(self.selected_spell)
 
 
@@ -104,11 +88,7 @@ class SpellConfirmScreen(ModalScreen):
             confirm_screen.border_title = f"{icons.QUESTION} Confirm Spell Cast"
             with confirm_screen:
                 yield Label("Cast this spell?")
-                yield Label(
-                    f"{self.spell_name} ({self.spell_mana} MP)",
-                    classes="spell-info",
-                )
-
+                yield Label(f"{self.spell_name} ({self.spell_mana} MP)", classes="spell-info")
                 with Horizontal(classes="modal-buttons"):
                     yield Button("Cancel", id="cancel", variant="default")
                     yield Button("Cast Spell", id="confirm", variant="success")
@@ -129,22 +109,5 @@ def create_party_message_modal() -> GenericEditModal:
 
     :returns: An instance of `GenericEditModal` configured for party messaging.
     """
-    fields = [
-        FormField(
-            id="message",
-            label="Message:",
-            field_type=FieldType.TEXTAREA,
-            placeholder="Type your message to the party...",
-            language="markdown",
-            classes="input-box",
-            required=True,
-        ),
-    ]
-
-    return GenericEditModal(
-        title="Send Party Message",
-        fields=fields,
-        icon=icons.CHAT,
-        auto_focus="message",
-        track_changes=False,
-    )
+    fields = [FormField(id="message", label="Message:", field_type=FieldType.TEXTAREA, placeholder="Type your message to the party...", language="markdown", classes="input-box", required=True)]
+    return GenericEditModal(title="Send Party Message", fields=fields, icon=icons.CHAT, auto_focus="message", track_changes=False)

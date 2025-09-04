@@ -50,28 +50,14 @@ class TextualSink:
         level_config = LEVEL_CONFIG.get(level_name, {"icon": "•", "color": "#908caa"})
         icon = level_config.get("icon", "•")
         level_color = level_config.get("color", "#908caa")
-
-        formatted_message = (
-            f"[#908caa][/] [{level_color}]{icon}[/] [{level_color}]{message_text}[/]"
-        )
-
+        formatted_message = f"[#908caa][/] [{level_color}]{icon}[/] [{level_color}]{message_text}[/]"
         self.console.write(formatted_message, expand=True)
 
 
 # ─── Integration Helper Functions ──────────────────────────────────────────────
-def add_textual_sink(
-    console_widget: TextualLogConsole,
-    level: str = "INFO",
-) -> int:
+def add_textual_sink(console_widget: TextualLogConsole, level: str = "INFO") -> int:
     sink = TextualSink(console_widget)
-    return logger.add(
-        sink=sink,
-        level=level,
-        format="{message}",
-        colorize=False,
-        backtrace=False,
-        diagnose=False,
-    )
+    return logger.add(sink=sink, level=level, format="{message}", colorize=False, backtrace=False, diagnose=False)
 
 
 def remove_textual_sink(sink_id: int) -> None:
@@ -87,11 +73,7 @@ class LoggingMixin:
         super().__init__(*args, **kwargs)
         self._textual_sink_id: int | None = None
 
-    def setup_logging_widget(
-        self,
-        log_widget: TextualLogConsole,
-        level: str = "INFO",
-    ) -> None:
+    def setup_logging_widget(self, log_widget: TextualLogConsole, level: str = "INFO") -> None:
         if self._textual_sink_id is not None:
             remove_textual_sink(self._textual_sink_id)
         self._textual_sink_id = add_textual_sink(log_widget, level)
