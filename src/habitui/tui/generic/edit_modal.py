@@ -188,7 +188,6 @@ class GenericEditModal(ModalScreen):
                         yield Input(
                             placeholder=field.placeholder,
                             value=str(original_value),
-                            type="text",
                             id=field.id,
                             classes=f"input-line {field.classes}",
                         )
@@ -210,9 +209,7 @@ class GenericEditModal(ModalScreen):
                         )
                         yield select_widget
 
-                    elif (
-                        field.field_type == FieldType.OPTION_LIST and field.option_items
-                    ):
+                    elif field.field_type == FieldType.OPTION_LIST and field.option_items:
                         # Create option list with selectable items
                         option_list = ListView(
                             classes=f"option-list {field.classes}",
@@ -221,9 +218,7 @@ class GenericEditModal(ModalScreen):
                         with option_list:
                             for item in field.option_items:
                                 if field.option_formatter:
-                                    title, subtitle, description = (
-                                        field.option_formatter(item)
-                                    )
+                                    title, subtitle, description = field.option_formatter(item)
                                     list_item = ListItem(
                                         Label(
                                             description,
@@ -283,7 +278,8 @@ class GenericEditModal(ModalScreen):
             if event.item and hasattr(event.item, "data_item"):
                 self._selected_option = event.item.data_item
 
-    def _validate_field(self, field: FormField, value: Any) -> tuple[bool, str]:
+    @staticmethod
+    def _validate_field(field: FormField, value: Any) -> tuple[bool, str]:
         """Validate a single field value.
 
         :param field: The `FormField` configuration for the field.
@@ -377,7 +373,7 @@ class GenericEditModal(ModalScreen):
     @on(Button.Pressed, "#cancel")
     def cancel_edit(self) -> None:
         """Handle the cancel button press."""
-        self.dismiss(None)
+        self.dismiss()
 
     @on(Button.Pressed, "#save")
     def save_changes(self) -> None:
@@ -392,21 +388,17 @@ class GenericEditModal(ModalScreen):
 
         if self.track_changes:
             if not self._has_changes(data):
-                self.dismiss(None)
+                self.dismiss()
                 return
 
             # Return only changed fields
-            changes = {
-                field_id: new_value
-                for field_id, new_value in data.items()
-                if new_value != self.original_data.get(field_id)
-            }
+            changes = {field_id: new_value for field_id, new_value in data.items() if new_value != self.original_data.get(field_id)}
             self.dismiss(changes)
         else:
             self.dismiss(data)
 
     def action_cancel(self) -> None:
-        self.dismiss(None)
+        self.dismiss()
 
     def action_save(self) -> None:
         self.save_changes()
@@ -448,7 +440,6 @@ def create_profile_edit_modal(
             id="bio",
             label="Bio (Markdown):",
             field_type=FieldType.TEXTAREA,
-            language="markdown",
             classes="input-box",
         ),
     ]
@@ -545,7 +536,6 @@ def create_task_edit_modal(
             id="description",
             label="Description:",
             field_type=FieldType.TEXTAREA,
-            language="markdown",
         ),
         FormField(
             id="active",
@@ -602,6 +592,6 @@ def create_settings_modal() -> GenericEditModal:
     return GenericEditModal(
         title="Settings",
         fields=fields,
-        icon=icons.SETTINGS,  # Replaced emoji with icon from habitui.ui
+        icon=icons.GEAR,  # Replaced emoji with icon from habitui.ui
         track_changes=False,  # Return all data, not just changes
     )

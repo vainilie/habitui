@@ -77,7 +77,7 @@ class SpellSelectionScreen(ModalScreen):
     @on(Button.Pressed, "#cancel")
     def cancel_spell(self) -> None:
         """Cancel spell casting."""
-        self.dismiss(None)
+        self.dismiss()
 
     @on(Button.Pressed, "#cast")
     def cast_spell(self) -> None:

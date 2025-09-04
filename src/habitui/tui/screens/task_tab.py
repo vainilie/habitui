@@ -122,9 +122,7 @@ class TaskFormatter:
             tag_names.remove(icons.TROPHY)
 
         tag_names.sort()
-        tag_names_clean = [
-            f"[white][/][blue on white]{tag} [/][white][/]" for tag in tag_names
-        ]
+        tag_names_clean = [f"[white][/][blue on white]{tag} [/][white][/]" for tag in tag_names]
 
         return "".join(tag_names_clean)
 
@@ -134,17 +132,13 @@ class TaskFormatter:
             "text": parse_emoji(task.text).replace("#", ""),
             "notes": parse_emoji(task.notes),
             "attribute": self.TAG_CONFIGS.get(TagsTrait(task.attribute[0:3])).icon,
-            "status": self._format_status(task.status)
-            if isinstance(task.status, DailyStatus)
-            else task.status,
+            "status": self._format_status(task.status) if isinstance(task.status, DailyStatus) else task.status,
             "type": task.type,
             "value": round(task.value),
             "priority": round(task.priority),
             "tags": self.format_tags(task.tags),
             "linked": f"[red]{icons.UNLINK}[/]" if task.task_broken else "",
-            "ch_linked": f"[red]{icons.MEGAPHONE}[/red]"
-            if task.task_broken
-            else icons.MEGAPHONE,
+            "ch_linked": f"[red]{icons.MEGAPHONE}[/red]" if task.task_broken else icons.MEGAPHONE,
             "challenge": self._format_challenge_display(task),
             "created": DateTimeHandler(
                 timestamp=task.created_at,
@@ -186,11 +180,7 @@ class TaskFormatter:
             task_grid.add_row(f"{task.streak}, {next_due_str}")
 
         if isinstance(task, TaskTodo):
-            next_due_str = (
-                DateTimeHandler(timestamp=task.due_date).format_time_difference()
-                if task.due_date
-                else ""
-            )
+            next_due_str = DateTimeHandler(timestamp=task.due_date).format_time_difference() if task.due_date else ""
             task_grid.add_row(f"{task.checklist}")
 
         if isinstance(task, TaskHabit):
@@ -297,20 +287,14 @@ class TaskFilter:
         elif current_filter == "incomplete":
             tasks_list = [t for t in tasks_list if not getattr(t, "completed", False)]
         elif current_filter == "due_today":
-            tasks_list = [
-                t
-                for t in tasks_list
-                if getattr(t, "isDue", False) or getattr(t, "due_today", False)
-            ]
+            tasks_list = [t for t in tasks_list if getattr(t, "isDue", False) or getattr(t, "due_today", False)]
+        elif current_filter == "broken":
+            tasks_list = [t for t in tasks_list if getattr(t, "challenge_broken", True) or getattr(t, "task_broken", True)]
 
         # Multi-select challenge filter
         selected_challenges = filter_settings.get("selected_challenges", set())
         if selected_challenges:
-            tasks_list = [
-                t
-                for t in tasks_list
-                if getattr(t, "challenge_id", None) in selected_challenges
-            ]
+            tasks_list = [t for t in tasks_list if getattr(t, "challenge_id", None) in selected_challenges]
 
         # Multi-select tag filter with AND/OR logic
         selected_tags = filter_settings.get("selected_tags", set())
@@ -319,27 +303,15 @@ class TaskFilter:
         if selected_tags:
             if tag_logic == "AND":
                 # Task must have ALL selected tags
-                tasks_list = [
-                    t
-                    for t in tasks_list
-                    if selected_tags.issubset(set(getattr(t, "tags", [])))
-                ]
+                tasks_list = [t for t in tasks_list if selected_tags.issubset(set(getattr(t, "tags", [])))]
             else:  # OR logic
                 # Task must have AT LEAST ONE of the selected tags
-                tasks_list = [
-                    t
-                    for t in tasks_list
-                    if selected_tags.intersection(set(getattr(t, "tags", [])))
-                ]
+                tasks_list = [t for t in tasks_list if selected_tags.intersection(set(getattr(t, "tags", [])))]
 
         # Multi-select attribute filter
         selected_attributes = filter_settings.get("selected_attributes", set())
         if selected_attributes:
-            tasks_list = [
-                t
-                for t in tasks_list
-                if getattr(t, "attribute", "")[:3] in selected_attributes
-            ]
+            tasks_list = [t for t in tasks_list if getattr(t, "attribute", "")[:3] in selected_attributes]
 
         return tasks_list
 
@@ -385,7 +357,7 @@ class TaskOperations:
         for task in tasks_to_score:
             try:
                 score_direction = direction if direction in {"up", "down"} else "up"
-                self.app.habitica_api.score_task_action(
+                await self.app.habitica_api.score_task_action(
                     task_id=task.id,
                     score_direction=score_direction,
                 )
@@ -405,7 +377,7 @@ class TaskOperations:
 
         for task in tasks_to_delete:
             try:
-                self.app.habitica_api.delete_existing_task(task_id=task.id)
+                await self.app.habitica_api.delete_existing_task(task_id=task.id)
                 success += 1
             except Exception as e:
                 log.error(f"Error deleting task {task.id}: {e}")
@@ -413,7 +385,7 @@ class TaskOperations:
 
         return {"success": success, "error": error}
 
-    async def cleanup_and_retag_tasks(self, tasks: TaskCollection) -> dict[str, Any]:
+    async def analyze_and_fix_inconsistencies(self, tasks: TaskCollection) -> dict[str, Any]:
         """Clean all parent/no_attr tags, then reclassify tasks based on child tags."""
         tags = self.vault.tags
         parent_tags = {
@@ -424,42 +396,103 @@ class TaskOperations:
             tags.get_no_attr_parent().id,
         }
 
-        tasks_to_cleanup = {
-            task.id for task in tasks if any(tag in parent_tags for tag in task.tags)
+        # Mapeo de atributos a tags padre
+        attr_to_parent = {
+            "str": tags.get_str_parent(),
+            "per": tags.get_per_parent(),
+            "int": tags.get_int_parent(),
+            "con": tags.get_con_parent(),
+            "non": tags.get_no_attr_parent(),
         }
 
-        retag_map = {"str": [], "int": [], "con": [], "per": [], "non": []}
+        issues_found = {
+            "missing_parent_tags": [],  # Tareas con atributo pero sin tag padre
+            "wrong_parent_tags": [],  # Tareas con tag padre incorrecto
+            "multiple_parent_tags": [],  # Tareas con múltiples tags padre
+            "orphaned_parent_tags": [],  # Tareas con tag padre pero sin atributo hijo
+        }
 
         for task in tasks:
-            task_attribute = None
+            # Detectar qué atributo debería tener basado en tags hijos
+            expected_attribute = None
+            child_tags_found = []
+
             for tag_id in task.tags:
                 if tag_id not in parent_tags:
                     if tag_data := tags.get_by_id(tag_id):
                         if hasattr(tag_data, "attribute") and tag_data.attribute:
-                            task_attribute = tag_data.attribute
-                            break
+                            child_tags_found.append(tag_data.attribute)
+                            expected_attribute = tag_data.attribute  # El último encontrado
 
-            if task_attribute in retag_map:
-                retag_map[task_attribute].append(task.id)
-            else:
-                retag_map["non"].append(task.id)
+            # Detectar tags padre actuales
+            current_parent_tags = [tag_id for tag_id in task.tags if tag_id in parent_tags]
+
+            # Si no hay tags hijos con atributo, debería ser "non"
+            if not expected_attribute:
+                expected_attribute = "non"
+
+            # Verificar inconsistencias
+            expected_parent_id = attr_to_parent[expected_attribute].id
+
+            if not current_parent_tags:
+                # Falta el tag padre
+                issues_found["missing_parent_tags"].append({
+                    "task_id": task.id,
+                    "expected_attribute": expected_attribute,
+                    "action": "add_parent_tag",
+                })
+            elif len(current_parent_tags) > 1:
+                # Múltiples tags padre
+                issues_found["multiple_parent_tags"].append({
+                    "task_id": task.id,
+                    "current_parents": current_parent_tags,
+                    "expected_attribute": expected_attribute,
+                    "action": "fix_multiple_parents",
+                })
+            elif current_parent_tags[0] != expected_parent_id:
+                # Tag padre incorrecto
+                issues_found["wrong_parent_tags"].append({
+                    "task_id": task.id,
+                    "current_parent": current_parent_tags[0],
+                    "expected_attribute": expected_attribute,
+                    "action": "replace_parent_tag",
+                })
+
+            # Verificar si tiene tag padre pero no tags hijos válidos
+            if current_parent_tags and not child_tags_found:
+                # Solo marcar como huérfano si el tag padre no es "non"
+                current_parent_tag_name = None
+                for attr, parent_tag in attr_to_parent.items():
+                    if parent_tag.id in current_parent_tags:
+                        current_parent_tag_name = attr
+                        break
+
+                if current_parent_tag_name and current_parent_tag_name != "non":
+                    issues_found["orphaned_parent_tags"].append({
+                        "task_id": task.id,
+                        "orphaned_parent": current_parent_tags[0],
+                        "action": "convert_to_non",
+                    })
 
         return {
-            "cleanup_count": len(tasks_to_cleanup),
-            "cleanup_tasks": list(tasks_to_cleanup),
-            "retag_map": retag_map,
-            "total_retag": sum(len(v) for v in retag_map.values()),
+            "issues_found": issues_found,
+            "total_issues": sum(len(v) for v in issues_found.values()),
+            "summary": {
+                "missing_parent": len(issues_found["missing_parent_tags"]),
+                "wrong_parent": len(issues_found["wrong_parent_tags"]),
+                "multiple_parents": len(issues_found["multiple_parent_tags"]),
+                "orphaned_parents": len(issues_found["orphaned_parent_tags"]),
+            },
         }
 
-    async def execute_cleanup_and_retag(
+    async def execute_maintenance_fixes(
         self,
-        cleanup_tasks: list[str],
-        retag_data: dict[str, list[str]],
+        issues_data: dict[str, Any],
     ) -> bool:
-        """Execute the cleanup and re-tagging API calls."""
+        """Ejecuta las correcciones de mantenimiento de forma conservadora."""
         try:
             tags = self.vault.tags
-            parent_tag_map = {
+            attr_to_parent = {
                 "str": tags.get_str_parent(),
                 "per": tags.get_per_parent(),
                 "int": tags.get_int_parent(),
@@ -467,38 +500,115 @@ class TaskOperations:
                 "non": tags.get_no_attr_parent(),
             }
 
-            log.info(f"{icons.RELOAD} Starting cleanup process...")
-            for task_id in cleanup_tasks:
-                for parent_tag in parent_tag_map.values():
-                    try:
-                        self.app.habitica_api.remove_tag_from_task(
-                            task_id=task_id,
-                            tag_id_to_remove=parent_tag.id,
-                        )
-                    except Exception as e:
-                        log.warning(
-                            f"Could not remove tag {parent_tag.id} from task {task_id}: {e}",
-                        )
+            issues = issues_data["issues_found"]
 
-            log.info(f"{icons.CHECK} Cleanup completed. Starting re-tagging...")
-            for attr, task_ids in retag_data.items():
-                parent_tag = parent_tag_map[attr]
-                for task_id in task_ids:
-                    self.app.habitica_api.add_tag_to_task(
+            log.info(f"{icons.GEAR} Iniciando correcciones de mantenimiento...")
+
+            # 1. Agregar tags padre faltantes
+            for issue in issues["missing_parent_tags"]:
+                task_id = issue["task_id"]
+                expected_attr = issue["expected_attribute"]
+                parent_tag = attr_to_parent[expected_attr]
+
+                try:
+                    await self.app.habitica_api.add_tag_to_task(
                         task_id=task_id,
                         tag_id_to_add=parent_tag.id,
                     )
-                    if attr != "non":
-                        self.app.habitica_api.assign_task_attribute(
+                    # Asignar atributo si no es "non"
+                    if expected_attr != "non":
+                        await self.app.habitica_api.assign_task_attribute(
                             task_id=task_id,
-                            task_attribute=attr,
+                            task_attribute=expected_attr,
                         )
+                    log.debug(f"✓ Agregado tag padre {expected_attr} a tarea {task_id}")
+                except Exception as e:
+                    log.warning(f"Error agregando tag padre a {task_id}: {e}")
 
-            log.info(f"{icons.CHECK} Re-tagging completed successfully!")
+            # 2. Corregir tags padre incorrectos
+            for issue in issues["wrong_parent_tags"]:
+                task_id = issue["task_id"]
+                current_parent = issue["current_parent"]
+                expected_attr = issue["expected_attribute"]
+                expected_parent = attr_to_parent[expected_attr]
+
+                try:
+                    # Remover el tag padre incorrecto
+                    await self.app.habitica_api.remove_tag_from_task(
+                        task_id=task_id,
+                        tag_id_to_remove=current_parent,
+                    )
+                    # Agregar el tag padre correcto
+                    await self.app.habitica_api.add_tag_to_task(
+                        task_id=task_id,
+                        tag_id_to_add=expected_parent.id,
+                    )
+                    # Asignar atributo correcto
+                    if expected_attr != "non":
+                        await self.app.habitica_api.assign_task_attribute(
+                            task_id=task_id,
+                            task_attribute=expected_attr,
+                        )
+                    log.debug(f"✓ Corregido tag padre de tarea {task_id}: {expected_attr}")
+                except Exception as e:
+                    log.warning(f"Error corrigiendo tag padre en {task_id}: {e}")
+
+            # 3. Limpiar múltiples tags padre
+            for issue in issues["multiple_parent_tags"]:
+                task_id = issue["task_id"]
+                current_parents = issue["current_parents"]
+                expected_attr = issue["expected_attribute"]
+                expected_parent = attr_to_parent[expected_attr]
+
+                try:
+                    # Remover todos los tags padre actuales
+                    for parent_id in current_parents:
+                        await self.app.habitica_api.remove_tag_from_task(
+                            task_id=task_id,
+                            tag_id_to_remove=parent_id,
+                        )
+                    # Agregar solo el correcto
+                    await self.app.habitica_api.add_tag_to_task(
+                        task_id=task_id,
+                        tag_id_to_add=expected_parent.id,
+                    )
+                    # Asignar atributo
+                    if expected_attr != "non":
+                        await self.app.habitica_api.assign_task_attribute(
+                            task_id=task_id,
+                            task_attribute=expected_attr,
+                        )
+                    log.debug(f"✓ Limpiados múltiples tags padre en tarea {task_id}")
+                except Exception as e:
+                    log.warning(f"Error limpiando múltiples tags en {task_id}: {e}")
+
+            # 4. Convertir tags padre huérfanos a "non"
+            for issue in issues["orphaned_parent_tags"]:
+                task_id = issue["task_id"]
+                orphaned_parent = issue["orphaned_parent"]
+                non_parent = attr_to_parent["non"]
+
+                try:
+                    # Remover el tag padre huérfano
+                    await self.app.habitica_api.remove_tag_from_task(
+                        task_id=task_id,
+                        tag_id_to_remove=orphaned_parent,
+                    )
+                    # Agregar tag "non"
+                    await self.app.habitica_api.add_tag_to_task(
+                        task_id=task_id,
+                        tag_id_to_add=non_parent.id,
+                    )
+                    log.debug(f"✓ Convertido tag huérfano a 'non' en tarea {task_id}")
+                except Exception as e:
+                    log.warning(f"Error convirtiendo tag huérfano en {task_id}: {e}")
+
+            total_fixes = sum(len(v) for v in issues.values())
+            log.info(f"{icons.CHECK} Mantenimiento completado: {total_fixes} correcciones aplicadas")
             return True
 
         except Exception as e:
-            log.error(f"{icons.ERROR} Error during cleanup and retag: {e}")
+            log.error(f"{icons.ERROR} Error durante mantenimiento: {e}")
             return False
 
 
@@ -521,6 +631,7 @@ class TasksTab(Vertical, BaseTab):
         Binding("w", "tasks_rewards", "Rewards"),
         Binding("a", "tasks_all", "All"),
         Binding("y", "tag_tasks_workflow", "TagTask"),
+        Binding("u", "unlink_task", "Unlink"),
     ]
 
     tasks: reactive[TaskCollection] = reactive(None, recompose=True)
@@ -562,6 +673,7 @@ class TasksTab(Vertical, BaseTab):
             ("Completed", "completed"),
             ("Incomplete", "incomplete"),
             ("Due Today", "due_today"),
+            ("Broken Tasks", "broken"),
         ]
 
         log.info("TasksTab: initialized with modular components")
@@ -657,10 +769,7 @@ class TasksTab(Vertical, BaseTab):
             return
 
         yield ListView(
-            *[
-                self.formatter.format_task_option(task, self.tasks_selected)
-                for task in current_tasks
-            ],
+            *[self.formatter.format_task_option(task, self.tasks_selected) for task in current_tasks],
             id="tasks_list",
             classes="select-line",
         )
@@ -754,22 +863,12 @@ class TasksTab(Vertical, BaseTab):
             self.filter = TaskFilter(self.vault)
             self.operations = TaskOperations(self.app, self.vault)
 
-            available_challenges = {
-                getattr(t, "challenge_id", None) for t in self.tasks.all_tasks
-            }
-            if (
-                self.current_challenge_filter != "all"
-                and self.current_challenge_filter not in available_challenges
-            ):
+            available_challenges = {getattr(t, "challenge_id", None) for t in self.tasks.all_tasks}
+            if self.current_challenge_filter != "all" and self.current_challenge_filter not in available_challenges:
                 self.current_challenge_filter = "all"
 
-            available_tags = {
-                tag for t in self.tasks.all_tasks for tag in getattr(t, "tags", [])
-            }
-            if (
-                self.current_tag_filter != "all"
-                and self.current_tag_filter not in available_tags
-            ):
+            available_tags = {tag for t in self.tasks.all_tasks for tag in getattr(t, "tags", [])}
+            if self.current_tag_filter != "all" and self.current_tag_filter not in available_tags:
                 self.current_tag_filter = "all"
 
             self.notify(
@@ -873,9 +972,7 @@ class TasksTab(Vertical, BaseTab):
             return
 
         task_list = self.query_one("#tasks_list", ListView)
-        if task_list.index is not None and (
-            selected_item := task_list.highlighted_child
-        ):
+        if task_list.index is not None and (selected_item := task_list.highlighted_child):
             sanitized_id = str(selected_item.id)
             task_id = self.formatter._extract_task_id(sanitized_id)
             if task := self.get_task(task_id):
@@ -959,50 +1056,268 @@ class TasksTab(Vertical, BaseTab):
 
     def action_tag_tasks_workflow(self) -> None:
         """Initiate the tag cleanup and re-assignment workflow."""
-        self._cleanup_and_retag_workflow()
+        self._maintenance_workflow()
 
-    # ─── Bulk Tagging Workflow ─────────────────────────────────────────────────────
+    # ─── Maintenance Workflow ─────────────────────────────────────────────────────
     @work
-    async def _cleanup_and_retag_workflow(self) -> None:
-        """Clean all parent/no_attr tags, then reclassify tasks based on child tags."""
-        workflow_data = await self.operations.cleanup_and_retag_tasks(self.tasks)
+    async def _maintenance_workflow(self) -> None:
+        """Analyze and fix only the inconsistencies found in task tagging."""
+        analysis_data = await self.operations.analyze_and_fix_inconsistencies(self.tasks)
 
+        issues = analysis_data["issues_found"]
+        summary_stats = analysis_data["summary"]
+
+        # Crear resumen detallado
         summary = f"""
-        CLEANUP & RETAG SUMMARY:
+        ANÁLISIS DE CONSISTENCIA:
         ========================
-        Tasks to cleanup: {workflow_data["cleanup_count"]}
-        Tasks to re-tag:
-        - STR: {len(workflow_data["retag_map"]["str"])}
-        - INT: {len(workflow_data["retag_map"]["int"])}
-        - CON: {len(workflow_data["retag_map"]["con"])}
-        - PER: {len(workflow_data["retag_map"]["per"])}
-        - NO_ATTR: {len(workflow_data["retag_map"]["non"])}
+        Issues encontrados: {analysis_data["total_issues"]}
+
+        Detalle por tipo:
+        - Tags padre faltantes: {summary_stats["missing_parent"]}
+        - Tags padre incorrectos: {summary_stats["wrong_parent"]}
+        - Múltiples tags padre: {summary_stats["multiple_parents"]}
+        - Tags padre huérfanos: {summary_stats["orphaned_parents"]}
         """
         log.info(summary)
 
+        # Si no hay issues, informar y salir
+        if analysis_data["total_issues"] == 0:
+            self.notify(
+                f"{icons.CHECK} No se encontraron inconsistencias",
+                title="Sistema consistente",
+            )
+            return
+
+        # Crear descripción detallada para el modal
+        issue_details = []
+        if summary_stats["missing_parent"] > 0:
+            issue_details.append(f"• {summary_stats['missing_parent']} tareas sin tag padre")
+        if summary_stats["wrong_parent"] > 0:
+            issue_details.append(f"• {summary_stats['wrong_parent']} tareas con tag padre incorrecto")
+        if summary_stats["multiple_parents"] > 0:
+            issue_details.append(f"• {summary_stats['multiple_parents']} tareas con múltiples tags padre")
+        if summary_stats["orphaned_parents"] > 0:
+            issue_details.append(f"• {summary_stats['orphaned_parents']} tags padre sin hijos válidos")
+
+        details_text = "\n".join(issue_details)
+
         confirm = GenericConfirmModal(
-            question=f"CLEANUP {workflow_data['cleanup_count']} tasks and RE-TAG {workflow_data['total_retag']} tasks?",
-            title="Cleanup & Retag All Tasks",
-            confirm_variant="warning",
-            icon=icons.QUESTION,
+            question=f"Se encontraron {analysis_data['total_issues']} inconsistencias:\n\n{details_text}\n\n¿Aplicar correcciones de mantenimiento?",
+            title="Mantenimiento del Sistema",
+            confirm_variant="primary",  # Menos agresivo que "warning"
+            icon=icons.GEAR,
         )
 
         if await self.app.push_screen(confirm, wait_for_dismiss=True):
-            success = await self.operations.execute_cleanup_and_retag(
-                workflow_data["cleanup_tasks"],
-                workflow_data["retag_map"],
-            )
+            success = await self.operations.execute_maintenance_fixes(analysis_data)
 
             if success:
                 self.notify(
-                    f"{icons.CHECK} Cleanup and re-tagging completed!",
-                    title="Success",
+                    f"{icons.CHECK} Mantenimiento completado: {analysis_data['total_issues']} correcciones aplicadas",
+                    title="Mantenimiento exitoso",
                 )
             else:
                 self.notify(
-                    f"{icons.ERROR} Failed during cleanup/retag process",
+                    f"{icons.ERROR} Error durante el proceso de mantenimiento",
                     title="Error",
                     severity="error",
                 )
 
             self.refresh_data()
+        else:
+            log.info("Mantenimiento cancelado por el usuario")
+
+    @work
+    async def action_unlink_task(self) -> None:
+        """Unlink the currently selected task(s) - handles both single and multi-select."""
+        if self.multiselect and self.tasks_selected:
+            # Modo multiselect - usar las tareas seleccionadas
+            tasks_to_unlink = [self.get_task(task_id) for task_id in self.tasks_selected]
+            tasks_to_unlink = [t for t in tasks_to_unlink if t is not None]
+            self._unlink_task_with_confirmation(tasks_to_unlink)
+        else:
+            # Modo single select - obtener la tarea highlighted
+            task_list = self.query_one("#tasks_list", ListView)
+            if task_list.index is not None and (selected_item := task_list.highlighted_child):
+                sanitized_id = str(selected_item.id)
+                task_id = self.formatter._extract_task_id(sanitized_id)
+                if task := self.get_task(task_id):
+                    self._unlink_task_with_confirmation([task])
+
+    @work
+    async def _unlink_task_with_confirmation(self, tasks_to_unlink: list[AnyTask]) -> None:
+        """Handle the workflow for unlinking one or more tasks from challenges with confirmation."""
+        if not tasks_to_unlink:
+            return
+
+        # Separar por tipo de problema
+        challenge_broken_tasks = []
+        individual_broken_tasks = []
+        non_broken_tasks = []
+
+        for task in tasks_to_unlink:
+            if hasattr(task, "challenge_broken") and task.challenge_broken:
+                # Si challenge_broken=True, siempre es challenge completo
+                challenge_broken_tasks.append(task)
+            elif hasattr(task, "task_broken") and task.task_broken and not (hasattr(task, "challenge_broken") and task.challenge_broken):
+                # Solo task_broken=True y challenge_broken=False
+                individual_broken_tasks.append(task)
+            else:
+                # task_broken=False y challenge_broken=False --> NO SE PUEDE
+                non_broken_tasks.append(task)
+
+        # Si hay tareas que no están broken, mostrar error
+        if non_broken_tasks:
+            non_broken_preview = "\n".join(f"• {t.text[:40]}" for t in non_broken_tasks[:3])
+            if len(non_broken_tasks) > 3:
+                non_broken_preview += f"\n... y {len(non_broken_tasks) - 3} más"
+
+            self.notify(
+                f"{icons.ERROR} Estas tareas no están broken y no se pueden desenlazar:\n\n{non_broken_preview}",
+                title="Tareas no broken",
+                severity="error",
+            )
+            return
+
+        # Si no hay tareas broken válidas, salir
+        if not challenge_broken_tasks and not individual_broken_tasks:
+            return
+
+        # Manejar challenges broken (por challenge_id)
+        if challenge_broken_tasks:
+            # Agrupar por challenge_id
+            challenges_to_unlink = {}
+            for task in challenge_broken_tasks:
+                challenge_id = task.challenge_id
+                if challenge_id not in challenges_to_unlink:
+                    challenges_to_unlink[challenge_id] = []
+                challenges_to_unlink[challenge_id].append(task)
+
+            # Procesar cada challenge broken
+            for challenge_id, selected_tasks in challenges_to_unlink.items():
+                # OBTENER TODAS LAS TAREAS DEL CHALLENGE (no solo las seleccionadas)
+                all_challenge_tasks = [t for t in self.tasks if hasattr(t, "challenge_id") and t.challenge_id == challenge_id]
+                await self._handle_challenge_broken_unlink(challenge_id, all_challenge_tasks)
+
+        # Manejar tareas individuales broken
+        for task in individual_broken_tasks:
+            await self._handle_individual_task_broken_unlink(task)
+
+        # Refrescar datos después de todas las operaciones
+        self.tasks_selected.clear()
+        self.refresh_data()
+        self.mutate_reactive(TasksTab.tasks)
+
+    async def _handle_challenge_broken_unlink(self, challenge_id: str, challenge_tasks: list[AnyTask]) -> None:
+        """Handle unlinking ALL tasks from a broken challenge."""
+        # Crear preview de las tareas del challenge
+        preview = "\n".join(f"• {t.text}" for t in challenge_tasks[:5])
+        if len(challenge_tasks) > 5:
+            preview += f"\n... y {len(challenge_tasks) - 5} más"
+
+        # Obtener nombre del challenge si está disponible
+        challenge_name = f"Challenge {challenge_id}"
+        if challenge_tasks and hasattr(challenge_tasks[0], "challenge_name"):
+            challenge_name = challenge_tasks[0].challenge_shortname or challenge_name
+
+        question = f"""El challenge '{challenge_name}' está BROKEN.
+
+    Tareas del challenge ({len(challenge_tasks)}):
+    {preview}
+
+    ¿Qué hacer con TODAS las tareas del challenge?"""
+
+        modal = GenericConfirmModal(
+            question=question,
+            title="Challenge Broken - Desenlazar Todo",
+            confirm_variant="warning",
+            icon=icons.UNLINK,
+            confirm_text="Mantener todas",
+            cancel_text="Eliminar todas",
+        )
+
+        user_choice = await self.app.push_screen(modal, wait_for_dismiss=True)
+        if user_choice is None:  # Usuario canceló
+            return
+
+        keep_option = "keep-all" if user_choice else "remove-all"
+
+        # Ejecutar el unlink del challenge completo
+        try:
+            success = self.app.habitica_api.unlink_all_tasks_from_challenge(
+                challenge_id=challenge_id,
+                task_handling_option=keep_option,
+            )
+
+            if success:
+                action_desc = "mantenidas" if keep_option == "keep-all" else "eliminadas"
+                self.notify(
+                    f"{icons.CHECK} Challenge broken desenlazado: {len(challenge_tasks)} tareas {action_desc}",
+                    title="Challenge Desenlazado",
+                )
+            else:
+                self.notify(
+                    f"{icons.ERROR} Error al desenlazar challenge broken",
+                    title="Error",
+                    severity="error",
+                )
+        except Exception as e:
+            log.error(f"Error unlinking broken challenge {challenge_id}: {e}")
+            self.notify(
+                f"{icons.ERROR} Error al desenlazar challenge: {e!s}",
+                title="Error",
+                severity="error",
+            )
+
+    async def _handle_individual_task_broken_unlink(self, task: AnyTask) -> None:
+        """Handle unlinking a single broken task from its active challenge."""
+        task_name = task.text[:50] + "..." if len(task.text) > 50 else task.text
+
+        question = f"""La tarea está BROKEN en su challenge:
+
+    "{task_name}"
+
+    ¿Qué hacer con esta tarea al desenlazarla?"""
+
+        modal = GenericConfirmModal(
+            question=question,
+            title="Tarea Broken - Desenlazar Individual",
+            confirm_variant="primary",
+            icon=icons.UNLINK,
+            confirm_text="Mantener tarea",
+            cancel_text="Eliminar tarea",
+        )
+
+        user_choice = await self.app.push_screen(modal, wait_for_dismiss=True)
+        if user_choice is None:  # Usuario canceló
+            return
+
+        keep_option = "keep" if user_choice else "remove"
+
+        # Ejecutar el unlink individual
+        try:
+            success = self.app.habitica_api.unlink_task_from_challenge(
+                task_id=task.id,
+                task_handling_option=keep_option,
+            )
+
+            if success:
+                action_desc = "mantenida" if keep_option == "keep" else "eliminada"
+                self.notify(
+                    f"{icons.CHECK} Tarea broken desenlazada y {action_desc}",
+                    title="Tarea Desenlazada",
+                )
+            else:
+                self.notify(
+                    f"{icons.ERROR} Error al desenlazar tarea broken",
+                    title="Error",
+                    severity="error",
+                )
+        except Exception as e:
+            log.error(f"Error unlinking broken task {task.id}: {e}")
+            self.notify(
+                f"{icons.ERROR} Error al desenlazar tarea: {e!s}",
+                title="Error",
+                severity="error",
+            )

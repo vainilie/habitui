@@ -417,9 +417,7 @@ class ProfileTab(BaseTab):
         )
 
         biography_section.border_title = f"{icons.FEATHER} About"
-        biography_section.border_subtitle = (
-            f"{icons.AT} {self.user_collection.username}"
-        )
+        biography_section.border_subtitle = f"{icons.AT} {self.user_collection.username}"
 
         return biography_section
 
@@ -526,8 +524,7 @@ class ProfileTab(BaseTab):
             payload = self._build_profile_payload(changes)
 
             if payload:
-                self.app.habitica_api.queue_operation(
-                    "update_user_settings_or_data",
+                await self.app.habitica_api.update_user_settings_or_data(
                     update_payload=payload,
                 )
 

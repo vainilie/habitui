@@ -17,8 +17,8 @@ class SimpleProgressWidget(Horizontal):
     status = reactive("")
 
     def compose(self) -> Generator[ProgressBar | Static, Any]:
-        yield ProgressBar(total=100, show_eta=True, id="progress")
-        yield Static("", id="status")
+        yield ProgressBar(total=100, id="progress")
+        yield Static( id="status")
 
     def show_progress(self, current: int, total: int, status: str = "") -> None:
         self.current = current
@@ -43,4 +43,4 @@ class SimpleProgressWidget(Horizontal):
         progress_bar.progress = 0
 
         status_text = self.query_one("#status", Static)
-        status_text.update("")
+        status_text.update()

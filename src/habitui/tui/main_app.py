@@ -1,8 +1,6 @@
 # ♥♥─── Main App ─────────────────────────────────────────────────────────────────
 from __future__ import annotations
 
-from typing import cast
-
 from textual.app import App, ComposeResult
 from textual.screen import Screen
 from textual.binding import Binding
@@ -14,7 +12,6 @@ from art import text2art
 from habitui.core.client import HabiticaClient
 from habitui.core.services import DataVault
 from habitui.custom_logger import get_logger
-from habitui.tui.main.api_handler import HabiticaBatcher
 
 from .main import LoggingMixin, TextualLogConsole, TextualThemeManager
 from .screens import MainScreen
@@ -52,10 +49,7 @@ class HabiTUI(App):
         super().__init__()
         self.logger = get_logger()
         self.theme_manager: TextualThemeManager = TextualThemeManager(self)
-        self.habitica_api = cast(
-            "HabiticaBatcher[HabiticaClient] | HabiticaClient",
-            HabiticaBatcher(HabiticaClient(), self),
-        )
+        self.habitica_api = HabiticaClient()
         self.vault: DataVault | None = None
         self.logging = LoggingMixin()
 

@@ -171,7 +171,8 @@ class StyleMapper:
             "status.neutral": Style(color=cls._get_color(theme_data, "yellow")),
         }
 
-    def map_json_to_textual_colors(self, theme_data: dict[str, Any]) -> dict[str, str]:
+    @staticmethod
+    def map_json_to_textual_colors(theme_data: dict[str, Any]) -> dict[str, str]:
         """Map JSON theme colors to Textual theme structure."""
         color_mapping = {
             "primary": theme_data.get("purple", "#c4a7e7"),
@@ -188,7 +189,8 @@ class StyleMapper:
         # Only include non-None values
         return {k: v for k, v in color_mapping.items() if v is not None}
 
-    def create_textual_variables(self, theme_data: dict[str, Any]) -> dict[str, str]:
+    @staticmethod
+    def create_textual_variables(theme_data: dict[str, Any]) -> dict[str, str]:
         """Create Textual-specific CSS variables from theme data."""
         background = theme_data.get("background", "#191724")
         foreground = theme_data.get("foreground", theme_data.get("white", "#e0def4"))
@@ -269,7 +271,7 @@ class ConsoleManager:
         """Create a new rich Console with the specified theme."""
         ensure_true_color()
         theme = self.create_theme(theme_name)
-        return Console(theme=theme, color_system="auto", highlight=True, markup=True, emoji=True, force_terminal=True, soft_wrap=True)
+        return Console(theme=theme, force_terminal=True, soft_wrap=True)
 
     def switch_theme(self, console: Console, theme_name: str) -> bool:
         """Switches the theme of an existing Console instance."""

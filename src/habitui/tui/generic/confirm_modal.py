@@ -71,9 +71,9 @@ class GenericConfirmModal(ModalScreen):
         self.bindings_enabled = bindings_enabled
         self.icon = icon
 
+    @staticmethod
     def _default_changes_formatter(
-        self,
-        changes: dict[str, Any],
+            changes: dict[str, Any],
     ) -> list[tuple[str, str]]:
         formatted_changes = []
 

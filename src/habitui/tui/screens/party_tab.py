@@ -64,7 +64,6 @@ class PartyTab(BaseTab):
         )
         self.party_chat_user = self.vault.party.get_user_messages()
 
-
     # ─── UI Composition ────────────────────────────────────────────────────────────
 
     def compose(self) -> ComposeResult:
@@ -110,9 +109,7 @@ class PartyTab(BaseTab):
 
                 if quest_data.boss_name:
                     progress_value = round(self.party_collection.quest_hp)
-                    progress_total = (
-                        quest_data.boss_hp if quest_data.boss_hp > 0 else 100
-                    )
+                    progress_total = quest_data.boss_hp if quest_data.boss_hp > 0 else 100
                     rows.append(
                         create_dashboard_row(
                             label="Boss HP",
@@ -124,9 +121,7 @@ class PartyTab(BaseTab):
                     )
 
                 elif quest_data.has_collect:
-                    total_needed = sum(
-                        item.get("count", 0) for item in quest_data.collect_items
-                    )
+                    total_needed = sum(item.get("count", 0) for item in quest_data.collect_items)
                     total_collected = sum(self.party_collection.quest_collect.values())
                     rows.append(
                         create_dashboard_row(
@@ -138,11 +133,7 @@ class PartyTab(BaseTab):
                         ),
                     )
 
-                status_icon = (
-                    icons.QUEST
-                    if (self.party_collection.quest_active)
-                    else icons.TIMELAPSE
-                )
+                status_icon = icons.QUEST if (self.party_collection.quest_active) else icons.TIMELAPSE
                 rows.extend(
                     [
                         create_dashboard_row(
@@ -183,9 +174,7 @@ class PartyTab(BaseTab):
         """Create the spells panel using new components."""
         spell_info = self._get_spell_info()
 
-        if not spell_info or (
-            not spell_info.get("affordable") and not spell_info.get("non_affordable")
-        ):
+        if not spell_info or (not spell_info.get("affordable") and not spell_info.get("non_affordable")):
             return create_info_panel(
                 create_dashboard_row(
                     value="No spells available for your class",
@@ -240,9 +229,7 @@ class PartyTab(BaseTab):
             if i <= len(all_spells):
                 spell = all_spells[i - 1]
                 is_affordable = spell in affordable
-                css_class = (
-                    "affordable-spell" if is_affordable else "unaffordable-spell"
-                )
+                css_class = "affordable-spell" if is_affordable else "unaffordable-spell"
 
                 spell_slot = Panel(
                     Label(spell.notes, classes="value", id=f"spell-description-{i}"),
@@ -251,9 +238,7 @@ class PartyTab(BaseTab):
                     title=f"{icons.WAND} {spell.text}",
                     title_icon="WAND",
                 )
-                spell_slot.border_subtitle = (
-                    f"{icons.MANA} {spell.mana} {icons.TARGET} {spell.target}"
-                )
+                spell_slot.border_subtitle = f"{icons.MANA} {spell.mana} {icons.TARGET} {spell.target}"
 
                 spell_items.append(ListItem(spell_slot))
             else:
@@ -282,13 +267,11 @@ class PartyTab(BaseTab):
             )
 
             user_messages = self.party_chat_user
-            party_container.border_title = (
-                f"{icons.CHAT} Party Chat ({len(user_messages)})"
-            )
+            party_container.border_title = f"{icons.CHAT} Party Chat ({len(user_messages)})"
 
             with party_container:
                 for message in user_messages:
-                    class_icon = self._get_class_icon(
+                    class_icon = _get_class_icon(
                         message.user_class.lower() if message.user_class else "",
                     )
 
@@ -297,10 +280,7 @@ class PartyTab(BaseTab):
                         classes="user-message",
                     )
                     msg_item.border_title = f"{class_icon} {parse_emoji(message.user)}"
-                    msg_item.border_subtitle = (
-                        f"{icons.HEART_O} {len(message.likes)} {icons.CLOCK_O} "
-                        f"{DateTimeHandler(timestamp=message.timestamp).format_time_difference()}"
-                    )
+                    msg_item.border_subtitle = f"{icons.HEART_O} {len(message.likes)} {icons.CLOCK_O} {DateTimeHandler(timestamp=message.timestamp).format_time_difference()}"
 
                     yield msg_item
 
@@ -311,9 +291,7 @@ class PartyTab(BaseTab):
             )
 
             system_messages = self.party_chat_info
-            system_container.border_title = (
-                f"{icons.ROBOT} System Messages ({len(system_messages)})"
-            )
+            system_container.border_title = f"{icons.ROBOT} System Messages ({len(system_messages)})"
 
             with system_container:
                 for message in system_messages:
@@ -383,10 +361,10 @@ class PartyTab(BaseTab):
         """Open dialog for casting spells."""
         self._cast_party_spell_workflow()
 
-    def action_join_quest(self) -> None:
+    async def action_join_quest(self) -> None:
         """Join the current party quest."""
         if self.user_collection.rsvp is True:
-            self.app.habitica_api.accept_party_quest_invite()
+            await self.app.habitica_api.accept_party_quest_invite()
             self.notify(
                 f"{icons.CHECK} Joined Quest!",
                 title="Party Quest",
@@ -460,7 +438,7 @@ class PartyTab(BaseTab):
         """Send a message to the group chat via the API."""
         try:
             log.info(f"{icons.CHAT} Sending party message: {message}")
-            self.app.habitica_api.post_message_to_group_chat(
+            await self.app.habitica_api.post_message_to_group_chat(
                 message_content=message,
             )
             self.refresh_data()

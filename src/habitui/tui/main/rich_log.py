@@ -55,7 +55,7 @@ class TextualSink:
             f"[#908caa][/] [{level_color}]{icon}[/] [{level_color}]{message_text}[/]"
         )
 
-        self.console.write(formatted_message, shrink=True, expand=True)
+        self.console.write(formatted_message, expand=True)
 
 
 # ─── Integration Helper Functions ──────────────────────────────────────────────

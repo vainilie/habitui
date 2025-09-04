@@ -70,7 +70,8 @@ class ThemedIcons:
         msg = f"Icon '{name}' not found. Available: {sorted(self.AVAILABLE_ICONS)}"
         raise AttributeError(msg)
 
-    def get_specific(self, icon_name: str) -> str:
+    @staticmethod
+    def get_specific(icon_name: str) -> str:
         """Get a specific icon variant by its full name."""
         if hasattr(IconName, icon_name):
             return getattr(IconName, icon_name).value
@@ -82,7 +83,8 @@ class ThemedIcons:
         new_shape: Literal["SIMPLE", "CIRCLE", "SQUARE"] = shape if shape is not None else (self.shape or "SIMPLE")
         return ThemedIcons(shape=new_shape, outline=outline if outline is not None else self.outline, alt=alt if alt is not None else self.alt)
 
-    def list_variants(self, base_name: str) -> list[str]:
+    @staticmethod
+    def list_variants(base_name: str) -> list[str]:
         """List all available variants for a base icon name."""
         upper_base_name = base_name.upper()
         return [icon.name for icon in IconName if icon.name.startswith(upper_base_name)]

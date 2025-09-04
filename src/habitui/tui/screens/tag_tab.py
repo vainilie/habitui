@@ -477,24 +477,24 @@ class TagsTab(BaseTab):
         try:
             log.info(f"{icons.RELOAD} Adding/deleting tags via API...")
             for task_id in changes["add"]["challenge"]:
-                self.app.habitica_api.add_tag_to_task(
+                await self.app.habitica_api.add_tag_to_task(
                     task_id=task_id,
                     tag_id_to_add=changes["ch_tag"],
                 )
 
             for task_id in changes["add"]["personal"]:
-                self.app.habitica_api.add_tag_to_task(
+                await self.app.habitica_api.add_tag_to_task(
                     task_id=task_id,
                     tag_id_to_add=changes["pe_tag"],
                 )
             for task_id in changes["del"]["challenge"]:
-                self.app.habitica_api.remove_tag_from_task(
+                await self.app.habitica_api.remove_tag_from_task(
                     task_id=task_id,
                     tag_id_to_remove=changes["ch_tag"],
                 )
 
             for task_id in changes["del"]["personal"]:
-                self.app.habitica_api.remove_tag_from_task(
+                await self.app.habitica_api.remove_tag_from_task(
                     task_id=task_id,
                     tag_id_to_remove=changes["pe_tag"],
                 )
@@ -513,7 +513,7 @@ class TagsTab(BaseTab):
             payload = self._build_tag_payload(changes)
 
             if payload:
-                self.app.habitica_api.create_new_tag(tag_name=payload["name"])
+                await self.app.habitica_api.create_new_tag(tag_name=payload["name"])
                 self.refresh_data()
                 self.notify(
                     f"{icons.CHECK} Tag created successfully!",
@@ -543,7 +543,7 @@ class TagsTab(BaseTab):
             payload["id"] = tag_id
 
             if payload:
-                self.app.habitica_api.update_existing_tag(
+                await self.app.habitica_api.update_existing_tag(
                     tag_id=payload["id"],
                     new_tag_name=payload["name"],
                 )
