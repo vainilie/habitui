@@ -139,8 +139,13 @@ class TaskFormatter:
         task_grid.add_row(task_data["attribute"])
         task_grid.add_row(f"{task_data['priority']} {task_data['value']}", style="dim")
         if isinstance(task, TaskDaily):
-            next_due_ts = task.next_due[0] if task.completed else task.next_due[1]
-            next_due_str = DateTimeHandler(timestamp=next_due_ts).format_time_difference()
+            if task.completed:
+                next_due_ts = task.next_due[0]
+            elif task.next_due:
+                next_due_ts = task.next_due[1]
+            else:
+                next_due_ts = None
+            next_due_str = DateTimeHandler(timestamp=next_due_ts).format_time_difference() if next_due_ts else None
             task_grid.add_row(f"{task.user_damage}, {task.party_damage}")
             task_grid.add_row(f"{task.streak}, {next_due_str}")
         if isinstance(task, TaskTodo):

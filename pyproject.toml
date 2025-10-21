@@ -21,8 +21,8 @@ dependencies = [
     "emoji",
     "emoji-data",
     "textual-tags",
-    "textual-timepiece"
-
+    "textual-timepiece",
+    "textual-dev>=1.8.0",
 ]
 
 [tool.uv]

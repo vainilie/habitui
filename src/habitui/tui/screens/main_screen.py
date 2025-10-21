@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 
 from textual.screen import Screen
 from textual.binding import Binding
-from textual.widgets import Label, Footer, Header, TabPane, TabbedContent
+from textual.widgets import Label, Footer, TabPane, TabbedContent
 from textual.reactive import reactive
 from textual.containers import Vertical, Horizontal
 
@@ -41,7 +41,7 @@ class MainScreen(Screen):
 
     def compose(self) -> ComposeResult:
         """Composes the main layout of the screen."""
-        yield Header(show_clock=True)
+        # yield Header(show_clock=True)
         yield Label(f"API Calls: {self.total_op}", id="pending-op-label")
         with Horizontal(id="content-area"):
             with Vertical(id="main-container"), TabbedContent(initial="profile"):

@@ -16,7 +16,7 @@ from box import Box
 from habitui.ui import icons, parse_emoji
 from habitui.utils import DateTimeHandler
 from habitui.custom_logger import log
-from habitui.tui.generic.base_tab import BaseTab
+from habitui.tui.generic.base_tab import BaseTab, _get_class_icon
 from habitui.tui.modals.party_modal import SpellSelectionScreen, create_party_message_modal
 from habitui.core.models.message_model import PartyMessage
 from habitui.tui.generic.confirm_modal import GenericConfirmModal
@@ -81,7 +81,7 @@ class PartyTab(BaseTab):
                     rows.append(create_dashboard_row(label="Boss HP", value=progress_value, progress_total=progress_total, icon="BEAT", element_id="quest-hp-row"))
                 elif quest_data.has_collect:
                     total_needed = sum(item.get("count", 0) for item in quest_data.collect_items)
-                    total_collected = sum(self.party_collection.quest_collect.values())
+                    total_collected = sum(self.party_collection.quest_collect.values()) if self.party_collection.quest_collect else 0
                     rows.append(create_dashboard_row(label="Items", value=total_collected, progress_total=total_needed, icon="BEAT", element_id="quest-collect-row"))
                 status_icon = icons.QUEST if (self.party_collection.quest_active) else icons.TIMELAPSE
                 rows.extend(
@@ -309,4 +309,4 @@ class PartyTab(BaseTab):
 
     def _get_spell_info(self):
         """Get available spell information for the user."""
-        return self.user.available_spells(content_vault=self..game_content)
+        return self.user.available_spells(content_vault=self.game_content)

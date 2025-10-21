@@ -57,7 +57,7 @@ class TextualSink:
 # ─── Integration Helper Functions ──────────────────────────────────────────────
 def add_textual_sink(console_widget: TextualLogConsole, level: str = "INFO") -> int:
     sink = TextualSink(console_widget)
-    return logger.add(sink=sink, level=level, format="{message}", colorize=False, backtrace=False, diagnose=False)
+    return logger.add(sink=sink, level=level, format="{message}", colorize=False, backtrace=True, diagnose=False)
 
 
 def remove_textual_sink(sink_id: int) -> None:
