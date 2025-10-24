@@ -135,6 +135,7 @@ class MessageDetailScreen(ModalScreen):
     """Screen for viewing a full conversation."""
 
     BINDINGS = [Binding("d", "delete_message", "Delete"), Binding("escape", "back_to_conversations", "Back")]
+    app: HabiTUI
 
     def __init__(self, conversation_data: dict[str, Any]) -> None:
         """Initialize the detail screen.
@@ -144,7 +145,6 @@ class MessageDetailScreen(ModalScreen):
         super().__init__()
         self.conversation_data = conversation_data
         self.selected_message_id: str | None = None
-        self.app: HabiTUI
 
     def compose(self) -> ComposeResult:
         """Compose the conversation view."""

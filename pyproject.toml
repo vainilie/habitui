@@ -41,11 +41,11 @@ dev-dependencies = [
 habitui = "habitui.main:main"
 
 [tool.black]
-line-length = 320
+line-length = 180
 target-version = ["py313"]
 
 [tool.ruff]
-line-length = 320
+line-length = 180
 target-version = "py313"
 src = ["src"]
 preview = true

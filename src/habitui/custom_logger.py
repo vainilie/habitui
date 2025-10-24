@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 from pathlib import Path
 from functools import wraps
+import threading  # ! <<< CAMBIO: Importamos threading
 
 from loguru import logger
 import logging
@@ -221,6 +222,8 @@ def add_textual_sink(textual_widget: Any, level: str = "TRACE") -> int:
     :param level: The minimum logging level for this sink
     :returns: The handler ID for the added sink
     """
+    # ! <<< CAMBIO: Capturamos el hilo principal
+    main_thread = threading.current_thread()
 
     def textual_sink(message: dict[str, Any]) -> None:
         record = message.record  # pyright: ignore[reportAttributeAccessIssue]
@@ -229,7 +232,19 @@ def add_textual_sink(textual_widget: Any, level: str = "TRACE") -> int:
         msg = record["message"]
         level_config = LEVEL_CONFIG.get(level_name, {"icon": "•", "color": "#908caa"})
         formatted_message = f"{time_str}│{level_config['icon']:<3}{msg}"
-        textual_widget.write(formatted_message)
+
+        try:
+            # ! <<< CAMBIO: Lógica de hilos
+            if threading.current_thread() is main_thread:
+                # Estamos en el HILO PRINCIPAL: escribimos directamente
+                textual_widget.write(formatted_message)
+            else:
+                # Estamos en un HILO WORKER: usamos call_from_thread
+                textual_widget.call_from_thread(textual_widget.write, formatted_message)
+        except Exception:
+            # Manejar el caso donde el widget podría ser
+            # eliminado antes de que el log termine de escribirse
+            pass
 
     return logger.add(textual_sink, level=level, format="{message}")  # type: ignore
 

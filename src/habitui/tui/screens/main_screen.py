@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 
 from textual.screen import Screen
 from textual.binding import Binding
-from textual.widgets import Label, Footer, TabPane, TabbedContent
+from textual.widgets import Label, Footer, Header, TabPane, TabbedContent
 from textual.reactive import reactive
 from textual.containers import Vertical, Horizontal
 
@@ -29,19 +29,19 @@ if TYPE_CHECKING:
 class MainScreen(Screen):
     """Main screen of the Habitica TUI application, featuring tabbed content."""
 
+    app: HabiTUI
     BINDINGS = [Binding("ctrl+l", "toggle_log", "Toggle Log"), Binding("?", "show_help", "Help")]
-    total_op: reactive[int] = reactive(0, always_update=True, recompose=True)
+    total_op: reactive[int] = reactive(0, always_update=True, recompose=False)
 
     def __init__(self) -> None:
         super().__init__()
-        self.app: HabiTUI
         self.show_sidebar: bool = False
         self.loaded_tabs = set()
         self.total_op = self.app.habitica_api.request_stats.total_requests
 
     def compose(self) -> ComposeResult:
         """Composes the main layout of the screen."""
-        # yield Header(show_clock=True)
+        yield Header(show_clock=True)
         yield Label(f"API Calls: {self.total_op}", id="pending-op-label")
         with Horizontal(id="content-area"):
             with Vertical(id="main-container"), TabbedContent(initial="profile"):

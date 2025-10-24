@@ -79,7 +79,13 @@ class TaskFormatter:
 
     def _format_status(self, status: DailyStatus) -> str | DailyStatus:
         """Format the status of a daily task with an icon."""
-        status_map = {DailyStatus.COMPLETED_TODAY: icons.CHECK, DailyStatus.DUE_TODAY: icons.BLANK, DailyStatus.READY_TO_COMPLETE: icons.HALF_CIRCLE, DailyStatus.INACTIVE: icons.SLEEP, DailyStatus.DUE_YESTERDAY: icons.BACK}
+        status_map = {
+            DailyStatus.COMPLETED_TODAY: icons.CHECK,
+            DailyStatus.DUE_TODAY: icons.BLANK,
+            DailyStatus.READY_TO_COMPLETE: icons.HALF_CIRCLE,
+            DailyStatus.INACTIVE: icons.SLEEP,
+            DailyStatus.DUE_YESTERDAY: icons.BACK,
+        }
         return status_map.get(status, status)
 
     def _format_challenge_display(self, task: AnyTask) -> str:
@@ -303,7 +309,12 @@ class TaskOperations:
         parent_tags = {tags.get_str_parent().id, tags.get_per_parent().id, tags.get_int_parent().id, tags.get_con_parent().id, tags.get_no_attr_parent().id}
         # Mapeo de atributos a tags padre
         attr_to_parent = {"str": tags.get_str_parent(), "per": tags.get_per_parent(), "int": tags.get_int_parent(), "con": tags.get_con_parent(), "non": tags.get_no_attr_parent()}
-        issues_found = {"missing_parent_tags": [], "wrong_parent_tags": [], "multiple_parent_tags": [], "orphaned_parent_tags": []}  # Tareas con atributo pero sin tag padre  # Tareas con tag padre incorrecto  # Tareas con múltiples tags padre  # Tareas con tag padre pero sin atributo hijo
+        issues_found = {
+            "missing_parent_tags": [],
+            "wrong_parent_tags": [],
+            "multiple_parent_tags": [],
+            "orphaned_parent_tags": [],
+        }  # Tareas con atributo pero sin tag padre  # Tareas con tag padre incorrecto  # Tareas con múltiples tags padre  # Tareas con tag padre pero sin atributo hijo
         for task in tasks:
             # Detectar qué atributo debería tener basado en tags hijos
             expected_attribute = None
@@ -326,10 +337,20 @@ class TaskOperations:
                 issues_found["missing_parent_tags"].append({"task_id": task.id, "expected_attribute": expected_attribute, "action": "add_parent_tag"})
             elif len(current_parent_tags) > 1:
                 # Múltiples tags padre
-                issues_found["multiple_parent_tags"].append({"task_id": task.id, "current_parents": current_parent_tags, "expected_attribute": expected_attribute, "action": "fix_multiple_parents"})
+                issues_found["multiple_parent_tags"].append({
+                    "task_id": task.id,
+                    "current_parents": current_parent_tags,
+                    "expected_attribute": expected_attribute,
+                    "action": "fix_multiple_parents",
+                })
             elif current_parent_tags[0] != expected_parent_id:
                 # Tag padre incorrecto
-                issues_found["wrong_parent_tags"].append({"task_id": task.id, "current_parent": current_parent_tags[0], "expected_attribute": expected_attribute, "action": "replace_parent_tag"})
+                issues_found["wrong_parent_tags"].append({
+                    "task_id": task.id,
+                    "current_parent": current_parent_tags[0],
+                    "expected_attribute": expected_attribute,
+                    "action": "replace_parent_tag",
+                })
             # Verificar si tiene tag padre pero no tags hijos válidos
             if current_parent_tags and not child_tags_found:
                 # Solo marcar como huérfano si el tag padre no es "non"
@@ -343,14 +364,25 @@ class TaskOperations:
         return {
             "issues_found": issues_found,
             "total_issues": sum(len(v) for v in issues_found.values()),
-            "summary": {"missing_parent": len(issues_found["missing_parent_tags"]), "wrong_parent": len(issues_found["wrong_parent_tags"]), "multiple_parents": len(issues_found["multiple_parent_tags"]), "orphaned_parents": len(issues_found["orphaned_parent_tags"])},
+            "summary": {
+                "missing_parent": len(issues_found["missing_parent_tags"]),
+                "wrong_parent": len(issues_found["wrong_parent_tags"]),
+                "multiple_parents": len(issues_found["multiple_parent_tags"]),
+                "orphaned_parents": len(issues_found["orphaned_parent_tags"]),
+            },
         }
 
     async def execute_maintenance_fixes(self, issues_data: dict[str, Any]) -> bool:
         """Ejecuta las correcciones de mantenimiento de forma conservadora."""
         try:
             tags = self.vault.tags
-            attr_to_parent = {"str": tags.get_str_parent(), "per": tags.get_per_parent(), "int": tags.get_int_parent(), "con": tags.get_con_parent(), "non": tags.get_no_attr_parent()}
+            attr_to_parent = {
+                "str": tags.get_str_parent(),
+                "per": tags.get_per_parent(),
+                "int": tags.get_int_parent(),
+                "con": tags.get_con_parent(),
+                "non": tags.get_no_attr_parent(),
+            }
             issues = issues_data["issues_found"]
             log.info(f"{icons.GEAR} Iniciando correcciones de mantenimiento...")
             # 1. Agregar tags padre faltantes
@@ -472,7 +504,15 @@ class TasksTab(Vertical, BaseTab):
             ("Created New-Old", "created_desc"),
             ("Created Old-New", "created_asc"),
         ]
-        self.filter_options = [("All Tasks", "all"), ("Challenge Tasks", "challenge"), ("Non-Challenge", "non_challenge"), ("Completed", "completed"), ("Incomplete", "incomplete"), ("Due Today", "due_today"), ("Broken Tasks", "broken")]
+        self.filter_options = [
+            ("All Tasks", "all"),
+            ("Challenge Tasks", "challenge"),
+            ("Non-Challenge", "non_challenge"),
+            ("Completed", "completed"),
+            ("Incomplete", "incomplete"),
+            ("Due Today", "due_today"),
+            ("Broken Tasks", "broken"),
+        ]
         log.info("TasksTab: initialized with modular components")
 
     # ─── Helper Methods ─────────────────────────────────────────────────────────────
@@ -488,7 +528,18 @@ class TasksTab(Vertical, BaseTab):
     def compose(self) -> ComposeResult:
         """Compose the dynamic UI for the tasks tab."""
         with Horizontal(classes="controls-row"):
-            yield Select([(f"{icons.CALENDAR} Dailies", "dailies"), (f"{icons.TASK_LIST} Todos", "todos"), (f"{icons.INFINITY} Habits", "habits"), (f"{icons.GIFT} Rewards", "rewards"), (f"{icons.GOAL} All", "all")], value=self.current_mode, id="mode_selector", classes="control-select")
+            yield Select(
+                [
+                    (f"{icons.CALENDAR} Dailies", "dailies"),
+                    (f"{icons.TASK_LIST} Todos", "todos"),
+                    (f"{icons.INFINITY} Habits", "habits"),
+                    (f"{icons.GIFT} Rewards", "rewards"),
+                    (f"{icons.GOAL} All", "all"),
+                ],
+                value=self.current_mode,
+                id="mode_selector",
+                classes="control-select",
+            )
             yield Select(self.sort_options, value=self.current_sort, id="sort_selector", classes="control-select")
             yield Select(self.filter_options, value=self.current_filter, id="filter_selector", classes="control-select")
             challenge_options = self.filter.get_challenge_filter_options(self.tasks)
@@ -776,7 +827,12 @@ class TasksTab(Vertical, BaseTab):
         if summary_stats["orphaned_parents"] > 0:
             issue_details.append(f"• {summary_stats['orphaned_parents']} tags padre sin hijos válidos")
         details_text = "\n".join(issue_details)
-        confirm = GenericConfirmModal(question=f"Se encontraron {analysis_data['total_issues']} inconsistencias:\n\n{details_text}\n\n¿Aplicar correcciones de mantenimiento?", title="Mantenimiento del Sistema", confirm_variant="primary", icon=icons.GEAR)  # Menos agresivo que "warning"
+        confirm = GenericConfirmModal(
+            question=f"Se encontraron {analysis_data['total_issues']} inconsistencias:\n\n{details_text}\n\n¿Aplicar correcciones de mantenimiento?",
+            title="Mantenimiento del Sistema",
+            confirm_variant="primary",
+            icon=icons.GEAR,
+        )  # Menos agresivo que "warning"
         if await self.app.push_screen(confirm, wait_for_dismiss=True):
             success = await self.operations.execute_maintenance_fixes(analysis_data)
             if success:
@@ -869,7 +925,9 @@ class TasksTab(Vertical, BaseTab):
     Tareas del challenge ({len(challenge_tasks)}):
     {preview}
     ¿Qué hacer con TODAS las tareas del challenge?"""
-        modal = GenericConfirmModal(question=question, title="Challenge Broken - Desenlazar Todo", confirm_variant="warning", icon=icons.UNLINK, confirm_text="Mantener todas", cancel_text="Eliminar todas")
+        modal = GenericConfirmModal(
+            question=question, title="Challenge Broken - Desenlazar Todo", confirm_variant="warning", icon=icons.UNLINK, confirm_text="Mantener todas", cancel_text="Eliminar todas"
+        )
         user_choice = await self.app.push_screen(modal, wait_for_dismiss=True)
         if user_choice is None:  # Usuario canceló
             return
@@ -892,7 +950,14 @@ class TasksTab(Vertical, BaseTab):
         question = f"""La tarea está BROKEN en su challenge:
     "{task_name}"
     ¿Qué hacer con esta tarea al desenlazarla?"""
-        modal = GenericConfirmModal(question=question, title="Tarea Broken - Desenlazar Individual", confirm_variant="primary", icon=icons.UNLINK, confirm_text="Mantener tarea", cancel_text="Eliminar tarea")
+        modal = GenericConfirmModal(
+            question=question,
+            title="Tarea Broken - Desenlazar Individual",
+            confirm_variant="primary",
+            icon=icons.UNLINK,
+            confirm_text="Mantener tarea",
+            cancel_text="Eliminar tarea",
+        )
         user_choice = await self.app.push_screen(modal, wait_for_dismiss=True)
         if user_choice is None:  # Usuario canceló
             return

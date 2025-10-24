@@ -11,7 +11,14 @@ from textual.containers import Horizontal, VerticalScroll
 
 from habitui.ui import icons, parse_emoji
 from habitui.core.models import TagComplex, TagCollection
-from habitui.tui.generic import Panel, BaseTab, GenericConfirmModal, HabiticaChangesFormatter, create_info_panel, create_dashboard_row
+from habitui.tui.generic import (
+    Panel,
+    BaseTab,
+    GenericConfirmModal,
+    HabiticaChangesFormatter,
+    create_info_panel as cip,
+    create_dashboard_row as cdr,
+)
 from habitui.custom_logger import log
 from habitui.tui.modals.tags_modal import create_tag_edit_modal, create_tag_create_modal, create_tag_delete_modal, create_batch_tag_delete_modal
 
@@ -26,6 +33,7 @@ if TYPE_CHECKING:
 class TagsTab(BaseTab):
     """Displays and manages tag hierarchy with attribute and ownership panels."""
 
+    app: HabiTUI
     # ─── Configuration ─────────────────────────────────────────────────────────────
     BINDINGS: list[Binding] = [
         Binding("a", "add_tag_workflow", "Add"),
@@ -49,10 +57,9 @@ class TagsTab(BaseTab):
 
     def __init__(self) -> None:
         super().__init__()
-        self.app: HabiTUI
         log.info("TagsTab: __init__ called")
-        self.tags_collection = self.vault.ensure_tags_loaded()
-        self.tags_count = self.vault.tasks.get_tag_count()  # type: ignore
+        self.tc = self.vault.ensure_tags_loaded()
+        self.tcc = self.vault.tasks.get_tag_count()  # type: ignore
         self.sort_modes = ["use", "name", ""]
 
     # ─── UI Composition ────────────────────────────────────────────────────────────
@@ -70,43 +77,43 @@ class TagsTab(BaseTab):
     def _create_attribute_tags_panel(self) -> Panel:  # type: ignore # noqa: RET503
         """Create attribute tags panel using new components."""
         rows = []
-        if self.tags_collection.get_str_parent():
-            tag = self.tags_collection.get_str_parent()
-            rows.append(create_dashboard_row(label="STR", value=parse_emoji(tag.name), icon="FIRE", element_id="str-tags-row"))  # type: ignore
+        if self.tc.get_str_parent():
+            tag = self.tc.get_str_parent()
+            rows.append(cdr(label="STR", value=parse_emoji(tag.name), icon="FIRE", element_id="str-tags-row"))  # type: ignore
         # INT tags
-        if self.tags_collection.get_int_parent():
-            tag = self.tags_collection.get_int_parent()
-            rows.append(create_dashboard_row(label="INT", value=parse_emoji(tag.name), icon="AIR", element_id="int-tags-row"))  # type: ignore
+        if self.tc.get_int_parent():
+            tag = self.tc.get_int_parent()
+            rows.append(cdr(label="INT", value=parse_emoji(tag.name), icon="AIR", element_id="int-tags-row"))  # type: ignore
         # PER tags
-        if self.tags_collection.get_per_parent():
-            tag = self.tags_collection.get_per_parent()
-            rows.append(create_dashboard_row(label="PER", value=parse_emoji(tag.name), icon="LEAF", element_id="per-tags-row"))  # type: ignore
-        if self.tags_collection.get_con_parent():
-            tag = self.tags_collection.get_con_parent()
-            rows.append(create_dashboard_row(label="CON", value=parse_emoji(tag.name), icon="DROP", element_id="con-tags-row"))  # type: ignore
-        if self.tags_collection.get_no_attr_parent():
-            tag = self.tags_collection.get_no_attr_parent()
-            rows.append(create_dashboard_row(label="None", value=parse_emoji(tag.name), icon="GHOST", element_id="no-attr-tags-row"))  # type: ignore
+        if self.tc.get_per_parent():
+            tag = self.tc.get_per_parent()
+            rows.append(cdr(label="PER", value=parse_emoji(tag.name), icon="LEAF", element_id="per-tags-row"))  # type: ignore
+        if self.tc.get_con_parent():
+            tag = self.tc.get_con_parent()
+            rows.append(cdr(label="CON", value=parse_emoji(tag.name), icon="DROP", element_id="con-tags-row"))  # type: ignore
+        if self.tc.get_no_attr_parent():
+            tag = self.tc.get_no_attr_parent()
+            rows.append(cdr(label="None", value=parse_emoji(tag.name), icon="GHOST", element_id="no-attr-tags-row"))  # type: ignore
         if len(rows) > 0:
-            return create_info_panel(*rows, title="Tags by Attribute", title_icon="WAND", element_id="attribute-tags-panel")
+            return cip(*rows, title="Tags by Attribute", title_icon="WAND", element_id="attribute-tags-panel")
 
     def _create_ownership_tags_panel(self) -> Panel:  # type: ignore  # noqa: RET503
         """Create ownership tags panel using new components."""
         rows = []
         # Personal tags
-        if self.tags_collection.get_personal_parent():
-            tag = self.tags_collection.get_personal_parent()
-            rows.append(create_dashboard_row(label="Personal", value=parse_emoji(tag.name), icon="USER", element_id="personal-tags-row"))  # type: ignore
+        if self.tc.get_personal_parent():
+            tag = self.tc.get_personal_parent()
+            rows.append(cdr(label="Personal", value=parse_emoji(tag.name), icon="USER", element_id="personal-tags-row"))  # type: ignore
         # Challenge tags
-        if self.tags_collection.get_challenge_parent():
-            tag = self.tags_collection.get_challenge_parent()
-            rows.append(create_dashboard_row(label="Challenge", value=parse_emoji(tag.name), icon="TROPHY", element_id="challenge-tags-row"))  # type: ignore
+        if self.tc.get_challenge_parent():
+            tag = self.tc.get_challenge_parent()
+            rows.append(cdr(label="Challenge", value=parse_emoji(tag.name), icon="TROPHY", element_id="challenge-tags-row"))  # type: ignore
         # Legacy tags
-        if self.tags_collection.get_legacy_parent():
-            tag = self.tags_collection.get_legacy_parent()
-            rows.append(create_dashboard_row(label="Legacy", value=parse_emoji(tag.name), icon="LEGACY", element_id="legacy-tags-row"))  # type: ignore
+        if self.tc.get_legacy_parent():
+            tag = self.tc.get_legacy_parent()
+            rows.append(cdr(label="Legacy", value=parse_emoji(tag.name), icon="LEGACY", element_id="legacy-tags-row"))  # type: ignore
         if len(rows) > 0:
-            return create_info_panel(*rows, title="Tags by Ownership", title_icon="USER", element_id="ownership-tags-panel")
+            return cip(*rows, title="Tags by Ownership", title_icon="USER", element_id="ownership-tags-panel")
 
     def _create_tags_hierarchy_panel(self) -> Panel:
         """Create tags hierarchy panel."""
@@ -117,7 +124,7 @@ class TagsTab(BaseTab):
         """Create the tag tree based on current collection."""
         tree = Tree("All Tags", id="tags-tree")
         tree.root.expand()
-        if not self.tags_collection:
+        if not self.tc:
             return tree
         # Create main nodes
         ownership_node = tree.root.add("Ownership Tags", expand=True)
@@ -132,7 +139,7 @@ class TagsTab(BaseTab):
 
         def sort_by(order: str, tag_list: list[TagComplex]) -> list[TagComplex]:
             if order == "use":
-                return sorted(tag_list, key=lambda t: self.tags_count.get(t.id, 0), reverse=True)
+                return sorted(tag_list, key=lambda t: self.tcc.get(t.id, 0), reverse=True)
             if order == "name":
                 return sorted(tag_list, key=lambda t: t.name, reverse=False)
             return tag_list
@@ -143,25 +150,25 @@ class TagsTab(BaseTab):
             return sort_by(order, tags)
 
         # ── Base & Personal Tags ─────────────────────────────────────────────
-        base_tags = sort_tags(self.tags_collection.base_tags)
-        personal_tags = sort_tags(self.tags_collection.get_legacy_tags())
+        base_tags = sort_tags(self.tc.base_tags)
+        personal_tags = sort_tags(self.tc.get_legacy_tags())
         for tag in base_tags:
-            count = self.tags_count.get(tag.id, 0)  # ← corregí: get por id
+            count = self.tcc.get(tag.id, 0)  # ← corregí: get por id
             name = f"({count}) {parse_emoji(tag.name)}"
             free_tags_node.add_leaf(name, data=tag)
         for tag in personal_tags:
-            count = self.tags_count.get(tag.id, 0)  # ← corregí: get por id
+            count = self.tcc.get(tag.id, 0)  # ← corregí: get por id
             name = f"({count}) {parse_emoji(tag.name)}"
             ownership_node.add_leaf(name, data=tag)
         # ── Attribute Categories ─────────────────────────────────────────────
         attribute_categories = ["str", "int", "per", "con"]
         attribute_labels = ["Strength", "Intelligence", "Perception", "Constitution", "No Attribute"]
         for category, label in zip(attribute_categories, attribute_labels, strict=False):
-            if self.tags_collection.get_by_attribute(category):
+            if self.tc.get_by_attribute(category):
                 category_node = attribute_node.add(label, expand=False)
-                tags_list = sort_tags(self.tags_collection.get_by_attribute(category))
+                tags_list = sort_tags(self.tc.get_by_attribute(category))
                 for tag in tags_list:
-                    count = self.tags_count.get(tag.id, 0)  # ← corregí: get por id
+                    count = self.tcc.get(tag.id, 0)  # ← corregí: get por id
                     name = f"({count}) {parse_emoji(tag.name)}"
                     category_node.add_leaf(name, data=tag)
 
@@ -171,9 +178,9 @@ class TagsTab(BaseTab):
         """Refresh tags data using BaseTab API access."""
         try:
             await self.vault.update_tags_only("smart", False, True)
-            self.tags_collection = self.vault.ensure_tags_loaded()
+            self.tc = self.vault.ensure_tags_loaded()
             await self.vault.update_tasks_only("smart", False, True)
-            self.tags_count = self.vault.tasks.get_tag_count()  # type: ignore
+            self.tcc = self.vault.tasks.get_tag_count()  # type: ignore
             self.mutate_reactive(TagsTab.tags_count)
             self.mutate_reactive(TagsTab.tags_collection)
             self.notify(f"{icons.CHECK} Tags data refreshed successfully!", title="Data Refreshed", severity="information")
@@ -216,7 +223,13 @@ class TagsTab(BaseTab):
         edit_screen = create_tag_create_modal()
         changes = await self.app.push_screen(edit_screen, wait_for_dismiss=True)
         if changes:
-            confirm_screen = GenericConfirmModal(question="The following tag will be created in Habitica:", changes=changes, changes_formatter=HabiticaChangesFormatter.format_changes, title="Confirm Tag Creation", icon=icons.QUESTION_CIRCLE)
+            confirm_screen = GenericConfirmModal(
+                question="The following tag will be created in Habitica:",
+                changes=changes,
+                changes_formatter=HabiticaChangesFormatter.format_changes,
+                title="Confirm Tag Creation",
+                icon=icons.QUESTION_CIRCLE,
+            )
             confirmed = await self.app.push_screen(confirm_screen, wait_for_dismiss=True)
             if confirmed:
                 await self._create_tag_via_api(changes)
@@ -230,7 +243,13 @@ class TagsTab(BaseTab):
             edit_screen = create_tag_edit_modal(tag=current_node.data)
             changes = await self.app.push_screen(edit_screen, wait_for_dismiss=True)
             if changes:
-                confirm_screen = GenericConfirmModal(question="The following changes will be sent to Habitica:", changes=changes, changes_formatter=HabiticaChangesFormatter.format_changes, title="Confirm Tag Changes", icon=icons.QUESTION_CIRCLE)
+                confirm_screen = GenericConfirmModal(
+                    question="The following changes will be sent to Habitica:",
+                    changes=changes,
+                    changes_formatter=HabiticaChangesFormatter.format_changes,
+                    title="Confirm Tag Changes",
+                    icon=icons.QUESTION_CIRCLE,
+                )
                 confirmed = await self.app.push_screen(confirm_screen, wait_for_dismiss=True)
                 if confirmed:
                     await self._update_tag_via_api(changes, current_node.data.id)
@@ -247,7 +266,7 @@ class TagsTab(BaseTab):
                 if confirmed:
                     await self._delete_tag_via_api(current_node.data)
             elif len(self.tags_selected) > 0:
-                delete_screen = create_batch_tag_delete_modal(tag_list=self.tags_selected, tag_uses=self.tags_count)
+                delete_screen = create_batch_tag_delete_modal(tag_list=self.tags_selected, tag_uses=self.tcc)
                 confirmed = await self.app.push_screen(delete_screen, wait_for_dismiss=True)
                 if confirmed:
                     for tag in self.tags_selected:
@@ -256,8 +275,8 @@ class TagsTab(BaseTab):
 
     @work
     async def _tag_tasks_workflow(self) -> None:
-        challenge_tag = self.tags_collection.get_challenge_parent()
-        personal_tag = self.tags_collection.get_personal_parent()
+        challenge_tag = self.tc.get_challenge_parent()
+        personal_tag = self.tc.get_personal_parent()
         add_ch_tag = []
         add_pe_tag = []
         del_ch_tag = []
@@ -274,10 +293,22 @@ class TagsTab(BaseTab):
                 add_pe_tag.append(task.id)
         add_total = len(add_pe_tag) + len(add_ch_tag)
         del_total = len(del_ch_tag) + len(del_pe_tag)
-        confirm = GenericConfirmModal(question=f"You will tag {add_total} and untag {del_total}. Continue?", title="Batch Tag Tasks", confirm_text="Accept", cancel_text="Cancel", confirm_variant="success", icon=icons.QUESTION)
+        confirm = GenericConfirmModal(
+            question=f"You will tag {add_total} and untag {del_total}. Continue?",
+            title="Batch Tag Tasks",
+            confirm_text="Accept",
+            cancel_text="Cancel",
+            confirm_variant="success",
+            icon=icons.QUESTION,
+        )
         confirmed = await self.app.push_screen(confirm, wait_for_dismiss=True)
         if confirmed:
-            changes = {"add": {"challenge": add_ch_tag, "personal": add_pe_tag}, "del": {"challenge": del_ch_tag, "personal": del_pe_tag}, "ch_tag": challenge_tag.id, "pe_tag": personal_tag.id}
+            changes = {
+                "add": {"challenge": add_ch_tag, "personal": add_pe_tag},
+                "del": {"challenge": del_ch_tag, "personal": del_pe_tag},
+                "ch_tag": challenge_tag.id,
+                "pe_tag": personal_tag.id,
+            }
             await self._tag_tasks_via_api(changes)
 
     async def _tag_tasks_via_api(self, changes: dict) -> None:
@@ -319,7 +350,7 @@ class TagsTab(BaseTab):
             payload["id"] = tag_id
             if payload:
                 await self.app.habitica_api.update_existing_tag(tag_id=payload["id"], new_tag_name=payload["name"])
-                self.tags_collection.update_tag(tag_id=payload["id"], update_data={"name": payload["name"]})
+                self.tc.update_tag(tag_id=payload["id"], update_data={"name": payload["name"]})
                 self.mutate_reactive(TagsTab.tags_collection)
                 self.notify(f"{icons.CHECK} Tag updated successfully!", title="Tag Updated", severity="information")
                 log.info(f"{icons.CHECK} Tag updated.")
@@ -333,7 +364,7 @@ class TagsTab(BaseTab):
         """Delete tag via API call."""
         try:
             log.info(f"{icons.RELOAD} Deleting tag via API...")
-            self.tags_collection.remove_tag(tag.id)
+            self.tc.remove_tag(tag.id)
             self.mutate_reactive(TagsTab.tags_collection)
             await self.client.delete_existing_tag(tag_id=tag.id)
             self.notify(f"{icons.CHECK} Tag '{tag.name}' deleted successfully!", title="Tag Deleted", severity="information")
@@ -357,7 +388,7 @@ class TagsTab(BaseTab):
             if self.multiselect:
                 current_label = str(current_node.label)
                 if current_node.data in self.tags_selected:
-                    current_node.set_label(f"({self.tags_count.get(current_node.data.id)}) {current_node.data.name}")
+                    current_node.set_label(f"({self.tcc.get(current_node.data.id)}) {current_node.data.name}")
                     self.tags_selected.remove(current_node.data)
                 else:
                     current_node.set_label(f"[on $accent]✓ {current_label}[/]")
@@ -374,7 +405,7 @@ class TagsTab(BaseTab):
             if self.multiselect:
                 current_label = str(event.node.label)
                 if current_data in self.tags_selected:
-                    event.node.set_label(f"({self.tags_count.get(current_data.id)}) {current_data.name}")
+                    event.node.set_label(f"({self.tcc.get(current_data.id)}) {current_data.name}")
                     self.tags_selected.remove(current_data)
                 else:
                     event.node.set_label(f"[b {color}]✓ {current_label}[/]")

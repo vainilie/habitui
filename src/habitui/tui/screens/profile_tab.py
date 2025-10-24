@@ -10,7 +10,7 @@ from textual import work
 from textual.binding import Binding
 from textual.widgets import Label, Collapsible
 from textual.reactive import reactive
-from textual.containers import Horizontal, VerticalScroll
+from textual.containers import Grid, Horizontal, VerticalScroll
 
 from box import Box
 
@@ -19,7 +19,11 @@ from habitui.custom_logger import log
 from habitui.tui.generic.base_tab import BaseTab
 from habitui.tui.generic.edit_modal import create_profile_edit_modal
 from habitui.tui.generic.confirm_modal import GenericConfirmModal, HabiticaChangesFormatter
-from habitui.tui.generic.dashboard_panels import Panel, create_info_panel, create_dashboard_row
+from habitui.tui.generic.dashboard_panels import (
+    Panel,
+    create_info_panel as cip,
+    create_dashboard_row as cdr,
+)
 
 
 if TYPE_CHECKING:
@@ -32,15 +36,20 @@ class ProfileTab(BaseTab):
     """Displays and manages the user's profile information, stats, and achievements."""
 
     # ─── Configuration ─────────────────────────────────────────────────────────────
-    BINDINGS: list[Binding] = [Binding("s", "toggle_sleep_status", "Sleep"), Binding("c", "trigger_cron_run", "Cron"), Binding("e", "edit_profile_mode", "Edit"), Binding("r", "refresh_data", "Refresh")]
+    BINDINGS: list[Binding] = [
+        Binding("s", "toggle_sleep_status", "Sleep"),
+        Binding("c", "trigger_cron_run", "Cron"),
+        Binding("e", "edit_profile_mode", "Edit"),
+        Binding("r", "refresh_data", "Refresh"),
+    ]
 
-    user_collection: reactive[Box] = reactive(Box, recompose=True)
+    uc: reactive[Box] = reactive(Box, recompose=True)
+    app: HabiTUI
 
     def __init__(self) -> None:
         super().__init__()
-        self.app: HabiTUI
         log.info("ProfileTab: __init__ called")
-        self.user_collection = Box(self.vault.user.get_display_data())  # type: ignore
+        self.uc = Box(self.vault.user.get_display_data())  # type: ignore
 
     # ─── UI Composition ────────────────────────────────────────────────────────────
 
@@ -49,10 +58,10 @@ class ProfileTab(BaseTab):
         log.info("ProfileTab: compose() called")
 
         with VerticalScroll(classes="dashboard-main-container"):
-            with Horizontal(classes="dashboard-panel-row"):
+            with Grid(classes="dashboard-panel-row"):
                 yield self._create_user_overview_panel()
                 yield self._create_character_stats_panel()
-            with Horizontal(classes="dashboard-panel-row"):
+            with Grid(classes="dashboard-panel-row"):
                 yield self._create_achievements_panel()
                 yield self._create_statistics_stats()
 
@@ -63,45 +72,71 @@ class ProfileTab(BaseTab):
         today = datetime.now().strftime("%A %d, %b %Y")  # noqa: DTZ005
 
         rows = [
-            create_dashboard_row(value=f"Welcome, {self.user_collection.display_name}!", icon="NORTH_STAR", element_id="user-welcome-message"),
-            create_dashboard_row(value=f"Today is {today}", icon="CALENDAR", element_id="current-date-info"),
-            create_dashboard_row(value=self.user_collection.sleep, icon="DUNGEON", element_id="sleep-status-row"),
-            create_dashboard_row(value=f"Day start: {self.user_collection.day_start}:00", icon="CLOCK_O", element_id="day-start-time-row"),
+            cdr(value=f"Welcome, {self.uc.display_name}!", icon="NORTH_STAR", element_id="user-welcome-message"),
+            cdr(value=f"Today is {today}", icon="CALENDAR", element_id="current-date-info"),
+            cdr(value=self.uc.sleep, icon="DUNGEON", element_id="sleep-status-row"),
+            cdr(value=f"Day start: {self.uc.day_start}:00", icon="CLOCK_O", element_id="day-start-time-row"),
         ]
 
-        if self.user_collection.has_quest:
-            rows.append(create_dashboard_row(value=self.user_collection.quest_display_text, icon="DRAGON", element_id="current-quest-row"))
+        if self.uc.has_quest:
+            rows.extend((
+                cdr(value=self.uc.quest_display_text, icon="DRAGON", element_id="current-quest-row"),
+                cdr(value=self.vault.ensure_tasks_loaded().get_damage()[0], element_id="partydam-stat-row", icon="CUT", label="Party damage"),
+            ))
 
-        if self.user_collection.needs_cron is True:
-            rows.append(create_dashboard_row(value="Needs Cron", icon="WARNING", element_id="cron-status-row"))
+        if self.uc.needs_cron is True:
+            rows.append(cdr(value="Needs Cron", icon="WARNING", element_id="cron-status-row"))
+        rows.append(cdr(icon="ALARM", label="User damage", value=self.vault.ensure_tasks_loaded().get_damage()[1], element_id="userdmg-stat-row"))
 
-        return create_info_panel(*rows, title="Overview", title_icon="CAT", element_id="user-overview-panel")
+        return cip(*rows, title="Overview", title_icon="CAT", element_id="user-overview-panel")
 
     def _create_character_stats_panel(self) -> Panel:
         """Create the character stats panel."""
         progress_section = Panel(
-            create_dashboard_row(label="HP", value=self.user_collection.hp.current, progress_total=self.user_collection.hp.max, show_progress_text=False, icon="BEAT", css_classes="hp", element_id="hp-stats-row"),
-            create_dashboard_row(label="XP", value=self.user_collection.xp.current, progress_total=self.user_collection.xp.max, show_progress_text=False, icon="EXP", css_classes="xp", element_id="xp-stats-row"),
-            create_dashboard_row(label="MP", value=self.user_collection.mp.current, progress_total=self.user_collection.mp.max, show_progress_text=False, icon="MANA", css_classes="mp", element_id="mp-stats-row"),
+            cdr(
+                label="HP",
+                value=self.uc.hp.current,
+                progress_total=self.uc.hp.max,
+                show_progress_text=False,
+                icon="BEAT",
+                css_classes="hp",
+                element_id="hp-stats-row",
+            ),
+            cdr(
+                label="XP",
+                value=self.uc.xp.current,
+                progress_total=self.uc.xp.max,
+                show_progress_text=False,
+                icon="EXP",
+                css_classes="xp",
+                element_id="xp-stats-row",
+            ),
+            cdr(
+                label="MP",
+                value=self.uc.mp.current,
+                progress_total=self.uc.mp.max,
+                show_progress_text=False,
+                icon="MANA",
+                css_classes="mp",
+                element_id="mp-stats-row",
+            ),
             css_classes="dashboard-panel-horizontal",
             element_id="user-health-mana-xp-bars",
         )
 
         primary_rows = [
-            create_dashboard_row(label="Levl", value=self.user_collection.level, icon="CHART_LINE", element_id="stat-level-row"),
-            create_dashboard_row(label="Gold", value=self.user_collection.gold, icon="STACK", element_id="stat-gold-row"),
-            create_dashboard_row(label="Gems", value=self.user_collection.gems, icon="GEM", element_id="stat-gems-row"),
+            cdr(label="Levl", value=self.uc.level, icon="CHART_LINE", element_id="stat-level-row"),
+            cdr(label="Gold", value=self.uc.gold, icon="STACK", element_id="stat-gold-row"),
+            cdr(label="Gems", value=self.uc.gems, icon="GEM", element_id="stat-gems-row"),
         ]
 
         primary_panel = Panel(*primary_rows, css_classes="dashboard-panel-vertical", element_id="user-primary-stats")
 
         attribute_rows = [
-            create_dashboard_row(label="PARTY DMG", value=self.vault.ensure_tasks_loaded().get_damage()[0], element_id="partydam-stat-row"),
-            create_dashboard_row(label="USER DMG", value=self.vault.ensure_tasks_loaded().get_damage()[1], element_id="userdmg-stat-row"),
-            create_dashboard_row(label="INT", value=self.user_collection.intelligence, element_id="intelligence-stat-row"),
-            create_dashboard_row(label="PER", value=self.user_collection.perception, element_id="perception-stat-row"),
-            create_dashboard_row(label="STR", value=self.user_collection.strength, element_id="strength-stat-row"),
-            create_dashboard_row(label="CON", value=self.user_collection.constitution, element_id="constitution-stat-row"),
+            cdr(label="INT", value=self.uc.intelligence, element_id="intelligence-stat-row"),
+            cdr(label="PER", value=self.uc.perception, element_id="perception-stat-row"),
+            cdr(label="STR", value=self.uc.strength, element_id="strength-stat-row"),
+            cdr(label="CON", value=self.uc.constitution, element_id="constitution-stat-row"),
         ]
 
         attribute_panel = Panel(*attribute_rows, css_classes="dashboard-panel-vertical", element_id="user-attributes-stats")
@@ -112,38 +147,35 @@ class ProfileTab(BaseTab):
 
     def _create_achievements_panel(self) -> Panel:
         """Create the achievements panel."""
-        (create_dashboard_row(label="Joined", value=self.user_collection.account_created, element_id="account-creation-date-row"),)
+        (cdr(label="Joined", value=self.uc.account_created, element_id="account-creation-date-row"),)
         achievement_rows = [
-            create_dashboard_row(label="Check-ins", value=self.user_collection.login_days, element_id="login-days-row"),
-            create_dashboard_row(label="Perfect Days", value=self.user_collection.perfect_days, element_id="perfect-days-row"),
-            create_dashboard_row(label="21D Streaks", value=self.user_collection.streak_count, element_id="streak-count-row"),
-            create_dashboard_row(label="Challenges Won", value=self.user_collection.challenges_won, element_id="challenges-won-row"),
-            create_dashboard_row(label="Quests Won", value=self.user_collection.quests_completed, element_id="quests-completed-row"),
+            cdr(label="Check-ins", value=self.uc.login_days, element_id="login-days-row"),
+            cdr(label="Perfect Days", value=self.uc.perfect_days, element_id="perfect-days-row"),
+            cdr(label="21D Streaks", value=self.uc.streak_count, element_id="streak-count-row"),
+            cdr(label="Challenges Won", value=self.uc.challenges_won, element_id="challenges-won-row"),
+            cdr(label="Quests Won", value=self.uc.quests_completed, element_id="quests-completed-row"),
+            cdr(label="Total Challenges", value=len(self.vault.ensure_challenges_loaded().get_all_challenges()), element_id="all-challenges-row"),
+            cdr(label="Participating Challenges", value=len(self.vault.ensure_challenges_loaded().get_joined_challenges()), element_id="joined-challenges-row"),
+            cdr(label="Created Challenges", value=len(self.vault.ensure_challenges_loaded().get_owned_challenges()), element_id="created-challenges-row"),
         ]
 
-        return create_info_panel(*achievement_rows, title="Achievements", title_icon="STARRY", element_id="user-achievements-panel")
+        return cip(*achievement_rows, title="Achievements", title_icon="STARRY", element_id="user-achievements-panel")
 
     def _create_statistics_stats(self) -> Panel:
         """Create the statistics panel with tasks and challenges sections."""
         tasks_rows = [
-            create_dashboard_row(icon="TASK", label="Total tasks", value=len(self.vault.ensure_tasks_loaded().all_tasks), element_id="total-tasks-row"),
-            create_dashboard_row(icon="TODO", label="Todos", value=len(self.vault.ensure_tasks_loaded().todos), element_id="total-todos-row"),
-            create_dashboard_row(icon="HABIT", label="Habits", value=len(self.vault.ensure_tasks_loaded().habits), element_id="total-habits-row"),
-            create_dashboard_row(icon="REWARD", label="Rewards", value=len(self.vault.ensure_tasks_loaded().rewards), element_id="total-rewards-row"),
-            create_dashboard_row(icon="DAILY", label="Dailies", value=len(self.vault.ensure_tasks_loaded().dailys), element_id="total-dailies-row"),
-            create_dashboard_row(icon="TODAY", label="Due Dailies", value=len(self.vault.ensure_tasks_loaded().get_due_dailies()), element_id="today-dailies-row"),
-            create_dashboard_row(icon="USER", label="User Tasks", value=len(self.vault.ensure_tasks_loaded().get_owned_tasks()), element_id="owntasks-challenges-row"),
+            cdr(icon="TODO", label="Todos", value=len(self.vault.ensure_tasks_loaded().todos), element_id="total-todos-row"),
+            cdr(icon="HABIT", label="Habits", value=len(self.vault.ensure_tasks_loaded().habits), element_id="total-habits-row"),
+            cdr(icon="REWARD", label="Rewards", value=len(self.vault.ensure_tasks_loaded().rewards), element_id="total-rewards-row"),
+            cdr(icon="DAILY", label="Dailies", value=len(self.vault.ensure_tasks_loaded().dailys), element_id="total-dailies-row"),
         ]
         today = datetime.now().strftime("%d, %b %Y")  # noqa: DTZ005
 
         challenges_rows = [
-            create_dashboard_row(value=f"{self.user_collection.display_name}", label=self.user_collection.username, icon="AT", element_id="user-welcome-message"),
-            create_dashboard_row(value=f"{today}", label="Today", icon="CALENDAR", element_id="current-date-info"),
-            create_dashboard_row(icon="MEDAL", label="Total Challenges", value=len(self.vault.ensure_challenges_loaded().get_all_challenges()), element_id="all-challenges-row"),
-            create_dashboard_row(icon="JOINED", label="Joined", value=len(self.vault.ensure_challenges_loaded().get_joined_challenges()), element_id="joined-challenges-row"),
-            create_dashboard_row(icon="OWNED", label="Created", value=len(self.vault.ensure_challenges_loaded().get_owned_challenges()), element_id="created-challenges-row"),
-            create_dashboard_row(icon="LEGACY", label="Legacy (guilds)", value=len(self.vault.ensure_challenges_loaded().get_legacy_challenges()), element_id="legacy-challenges-row"),
-            create_dashboard_row(icon="KEY", label="Challenge Tasks", value=len(self.vault.ensure_tasks_loaded().get_challenge_tasks()), element_id="chtasks-challenges-row"),
+            cdr(icon="USER", label="User Tasks", value=len(self.vault.ensure_tasks_loaded().get_owned_tasks()), element_id="owntasks-challenges-row"),
+            cdr(icon="KEY", label="Challenge Tasks", value=len(self.vault.ensure_tasks_loaded().get_challenge_tasks()), element_id="chtasks-challenges-row"),
+            cdr(icon="TASK", label="Total tasks", value=len(self.vault.ensure_tasks_loaded().all_tasks), element_id="total-tasks-row"),
+            cdr(icon="TODAY", label="Due Dailies", value=len(self.vault.ensure_tasks_loaded().get_due_dailies()), element_id="today-dailies-row"),
         ]
 
         # Crear paneles individuales siguiendo la misma estructura que stats
@@ -159,10 +191,15 @@ class ProfileTab(BaseTab):
 
     def _create_biography_section(self) -> Collapsible:
         """Create the biography section."""
-        biography_section = Collapsible(Label(Markdown(self.user_collection.bio), id="user-biography-content", classes="markdown-box"), classes="text-box-collapsible", id="user-biography-collapsible", title="Description")
+        biography_section = Collapsible(
+            Label(Markdown(self.uc.bio), id="user-biography-content", classes="markdown-box"),
+            classes="text-box-collapsible",
+            id="user-biography-collapsible",
+            title="Description",
+        )
 
         biography_section.border_title = f"{icons.FEATHER} About"
-        biography_section.border_subtitle = f"{icons.AT} {self.user_collection.username}"
+        biography_section.border_subtitle = f"{icons.AT} {self.uc.username}"
 
         return biography_section
 
@@ -173,8 +210,8 @@ class ProfileTab(BaseTab):
         """Refresh user data using BaseTab API access."""
         try:
             await self.vault.update_user_only("smart", False, True, False)
-            self.user_collection = Box(self.vault.user.get_display_data())  # type: ignore
-            self.mutate_reactive(ProfileTab.user_collection)
+            self.uc = Box(self.vault.user.get_display_data())  # type: ignore
+            self.mutate_reactive(ProfileTab.uc)
             self.notify(f"{icons.CHECK} Profile data refreshed successfully!", title="Data Refreshed", severity="information")
         except Exception as e:
             log.error(f"{icons.ERROR} Error refreshing data: {e}")
@@ -218,10 +255,16 @@ class ProfileTab(BaseTab):
 
     @work
     async def _edit_profile_workflow(self) -> None:
-        edit_screen = create_profile_edit_modal(name=self.user_collection.display_name, bio=self.user_collection.bio, day_start=self.user_collection.day_start)
+        edit_screen = create_profile_edit_modal(name=self.uc.display_name, bio=self.uc.bio, day_start=self.uc.day_start)
         changes = await self.app.push_screen(edit_screen, wait_for_dismiss=True)
         if changes:
-            confirm_screen = GenericConfirmModal(question="The following changes will be sent to Habitica:", changes=changes, changes_formatter=HabiticaChangesFormatter.format_changes, title="Confirm Changes", icon=icons.QUESTION_CIRCLE)
+            confirm_screen = GenericConfirmModal(
+                question="The following changes will be sent to Habitica:",
+                changes=changes,
+                changes_formatter=HabiticaChangesFormatter.format_changes,
+                title="Confirm Changes",
+                icon=icons.QUESTION_CIRCLE,
+            )
             confirmed = await self.app.push_screen(confirm_screen, wait_for_dismiss=True)
             if confirmed:
                 await self._save_profile_changes_via_api(changes)

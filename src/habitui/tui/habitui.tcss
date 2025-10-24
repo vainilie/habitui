@@ -32,15 +32,20 @@
     $pmenu_bg: #c4a7e7;
     $folder_bg: #6aadc8;
 
+* {scrollbar-visibility: hidden;
+    scrollbar-size: 0 0;
+}
 
 
 /* 2. ─── Loading Screen ─────────────────────────────────────────────────────── */
+
 
     #home-screen * {
         margin:     2;
         width:      80vw;
         align:      center middle;
         padding:    1;
+
     }
 
 /* ─── Banner ─────────────────────────────────────────────────────── */
@@ -49,7 +54,7 @@
         border:                         round $baby_pink;
         content-align-horizontal:       center;
         content-align-vertical:         middle;
-        padding:                        1;
+        padding:                        0;
         height:                         auto;
     }
 
@@ -134,32 +139,65 @@
 
     ProfileTab,TagsTab,PartyTab {
         height:     auto;
-
     }
 
     ProfileTab * {
         padding:    0;
-        margin:     0;
-    }
+        margin:     0;}
+    ProfileTab{
+        margin-left: 1;
+        margin-right: 1;
 
-    #user-health-mana-xp-bars {
+    }
+    Screen {
+    Grid {
+     grid-rows: auto; height: auto;
+     layout:grid;
+
+    }
+    # Change the styles according to the breakpoint classes
+    &.-narrow {
+        Grid {
+            layout: grid;
+            grid-size: 1;
+            height: 100%;
+            margin-bottom: 1;
+        }
+        }
+        &.-normal {
+        Grid {
+            layout: vertical;
+            margin-bottom: 0;
+            width: 100%;
+        }
+        }
+        &.-wide {
+        Grid {
+            layout: grid;
+            grid-size: 2;
+            height: auto;
+            margin-bottom: 0;
+        }
+        }
+        &.-very-wide {
+        Grid {
+            layout: grid;
+            grid-size: 2;
+            height: auto;
+            margin-bottom: 0;
+        }
+    }
+}
+
+        #user-health-mana-xp-bars {
         margin:     0;
         padding:    0;
-    }
-
-    .dashboard-main-container {
-    }
-
-    .dashboard-panel-row {
-        layout:             grid;
-        grid-size:          2;
-        height:             auto;
-        margin-bottom:      1;
+        margin-bottom: 1;
     }
 
     .dashboard-panel {
-        padding:                1;
-        border:                 panel $pmenu_bg;
+        padding:                0 1;
+        border:                 round $pmenu_bg;
         height:                 auto;
         border-title-align:     center;
         padding-bottom:         0;
@@ -172,25 +210,26 @@
 
     .dashboard-panel-vertical {
         height:         auto;
-        padding-top:    1;
+        padding-top:    0;
         border:         hidden $pmenu_bg;
     }
 
+
     .text-box-collapsible {
-        border:                 panel $pmenu_bg;
-        padding:                1;
+        border:                 round $pmenu_bg;
+        padding:                0 1;
         height:                 auto;
         border-title-align:     center;
-        background:             $boost;
+        background:             $background;
     }
 
     .text-box-collapsible CollapsibleTitle {
         height:             auto;
-        padding-bottom:     1;
+        padding-bottom:     0;
     }
 
     .markdown-box {
-        background:     $surface;
+        background:     $boost;
         border:         inner $boost;
     }
 
@@ -251,38 +290,48 @@
 
 /* Actualizar IDs de las barras de progreso */
 
-    #hp-stats-row .icon, #hp-stats-row .label, #hp-stats-row Bar>.bar--bar, #hp-stats-row Bar>.bar--complete {
-        color:      $error;
+#hp-stats-row .icon,
+#hp-stats-row .label,
+#hp-stats-row Bar>.bar--bar,
+#hp-stats-row Bar>.bar--complete {
+    color: $error;
     }
 
-    #mp-stats-row .icon, #mp-stats-row .label, #mp-stats-row Bar>.bar--bar, #mp-stats-row Bar>.bar--complete {
-        color:      $success;
+#mp-stats-row .icon,
+#mp-stats-row .label,
+#mp-stats-row Bar>.bar--bar,
+#mp-stats-row Bar>.bar--complete {
+    color: $success;
     }
 
-    #xp-stats-row .icon, #xp-stats-row .label, #xp-stats-row Bar>.bar--bar, #xp-stats-row Bar>.bar--complete {
-        color:      $warning;
+#xp-stats-row .icon,
+#xp-stats-row .label,
+#xp-stats-row Bar>.bar--bar,
+#xp-stats-row Bar>.bar--complete {
+    color: $warning;
     }
 
     #cron-status-row * {
-        color:      $error;
+    color: $error;
     }
 
     #user-attributes-stats .label-value-row {
-        grid-columns:       1fr;
+    grid-columns: 1fr;
     }
 
     #user-health-mana-xp-bars Bar {
-        width:      1fr;
+    width: 1fr;
     }
 
-    #user-achievements-panel .value, #user-stats .value {
-        padding-left:       0;
+#user-achievements-panel .value,
+#user-stats .value {
+    padding-left: 0;
     }
 
     #user-primary-and-attributes-stats {
-        layout:             grid;
-        grid-size:          2 1;
-        grid-columns:       3fr 2fr;
+    layout: grid;
+    grid-size: 2 1;
+    grid-columns: 3fr 2fr;
     }
 
 
@@ -293,39 +342,78 @@ SimpleProgressWidget.hidden {
 }
 
 #party-overview-panel {
-    height:auto
+    height: auto
 }
-#available-spells-panel{
-    height:auto
+
+#available-spells-panel {
+    height: auto
 }
-#spell-list-container{
-    height:auto;
+
+#spell-list-container {
+    height: auto;
     border: hidden;
 }
 
-#spells-display-area{
-    height:auto
+#spells-display-area {
+    height: auto;
 }
-
+.system-message{
+    margin: 0;
+    padding: 0 1;
+}
 .spell-slot,
-.user-message{
-    border:solid;
+.user-message {
+    height: auto;
+    width: 100%;
+    border: round $purple;
+    padding: 0 1
+}
+#chat-message-input{
+    margin: 0;
+    width: 100%;
+    border: round $secondary;
+    background:$background
+
+}
+#party-user-chat-container{
+    background:$background
+
+}
+PartyTab .text-box-collapsible{
+    margin: 0;
+    border: round $accent;
+    padding: 0 1;
+
+}
+.user-message {
+margin-top: 1}
+
+#main_list {
+    height: 50%;
 }
 
-#main_list{height:50%}
-.controls-row{height:auto;
-margin:1}
-#tasks_list{
+.controls-row {
+    height: auto;
+    margin: 1;
+}
+
+#tasks_list {
     width: auto;
     height: 80%;
 }
 
-.task-selected{
-    background: $baby_pink ;
+.task-selected {
+    background: $baby_pink;
 }
 
-.task-item Label{
-    width: 100%
+.task-item Label {
+    width: 100%;
 
 }
 
+#ownership-tags-panel{
+    height:100%
+}
+.dashboard-panel-row{
+    height:auto;
+}

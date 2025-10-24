@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, cast
 from itertools import starmap
 
+from rich.panel import Panel
 from rich.table import Table
 from rich.markdown import Markdown as rMarkdown
 
@@ -150,7 +151,12 @@ class LeaveChallengeScreen(ModalScreen):
 class ChallengeDetailScreen(Screen):
     """Screen for viewing challenge details."""
 
-    BINDINGS = [Binding("j", "join_challenge", "Join"), Binding("k", "leave_challenge", "Leave"), Binding("t", "load_tasks", "Tasks"), Binding("escape", "back_to_challenges", "Back")]
+    BINDINGS = [
+        Binding("j", "join_challenge", "Join"),
+        Binding("k", "leave_challenge", "Leave"),
+        Binding("t", "load_tasks", "Tasks"),
+        Binding("escape", "back_to_challenges", "Back"),
+    ]
 
     def __init__(self, challenge_data: ChallengeInfo) -> None:
         """Initialize the detail screen.
@@ -270,7 +276,15 @@ class ChallengeDetailScreen(Screen):
 class ChallengesTab(Vertical, BaseTab):
     """Tab for managing challenges with tabbed interface and lazy loading."""
 
-    BINDINGS = [Binding("m", "challenges_mine", "My Challenges"), Binding("o", "challenges_owned", "Owned"), Binding("j", "challenges_joined", "Joined"), Binding("p", "challenges_public", "Public"), Binding("right", "next_page", "Next →"), Binding("left", "prev_page", "← Prev"), Binding("r", "refresh_data", "Refresh")]
+    BINDINGS = [
+        Binding("m", "challenges_mine", "My Challenges"),
+        Binding("o", "challenges_owned", "Owned"),
+        Binding("j", "challenges_joined", "Joined"),
+        Binding("p", "challenges_public", "Public"),
+        Binding("right", "next_page", "Next →"),
+        Binding("left", "prev_page", "← Prev"),
+        Binding("r", "refresh_data", "Refresh"),
+    ]
     challenges: reactive[dict[str, Any]] = reactive(dict, recompose=True)
     current_mode: reactive[str] = reactive("mine", recompose=True)
     current_page: reactive[int] = reactive(0, recompose=True)
@@ -294,19 +308,28 @@ class ChallengesTab(Vertical, BaseTab):
         :param challenge_data: The challenge data
         :returns: A configured Option widget
         """
-        grid = Table(expand=True, padding=(0, 1), show_header=False, show_lines=True)
+        grid = Table.grid(expand=True, padding=(0, 1))
         grid.add_column(justify="center", ratio=1)
         grid.add_column(justify="full", ratio=15)
-        grid.add_column(justify="left", ratio=3)
         # Status icon based on whether user joined the challenge
         status_icon = icons.CHECK if getattr(challenge_data, "joined", False) else icons.BLANK
         # Third row: Summary and time
         time_formatted = DateTimeHandler(timestamp=challenge_data.created_at).format_time_difference()
-        grid.add_row(f"{status_icon}", f"[b]{parse_emoji(challenge_data.name)}[/b]", f"{icons.GEM} {challenge_data.prize}")
+        grid.add_row(f"{status_icon}", f"[b]{parse_emoji(challenge_data.name)}[/b]")
         # Second row: Prize, leader, and member count
-        grid.add_row("", f"{icons.LEGACY if challenge_data.legacy else ''}{parse_emoji(challenge_data.group_name or 'Public')} {icons.SMALL_CIRCLE} {icons.USER} {parse_emoji(challenge_data.leader_name or '')}", f"{icons.CROWD} {challenge_data.member_count}")
+        info = [
+            f"{icons.GEM} {challenge_data.prize!s:^4}",
+            f"{icons.GROUP} {challenge_data.member_count!s:^4}",
+            f"{icons.HISTORY}[dim]{time_formatted.replace(' ago', '')}[/dim]",
+            f"{icons.SMALL_CIRCLE} {parse_emoji(challenge_data.leader_name or '')}",
+            f"{icons.LEGACY if challenge_data.legacy else ''}{parse_emoji(challenge_data.group_name or '')}",
+        ]
+        grid.add_row(
+            "",
+            " ".join(info),
+        )
         summary_preview = parse_emoji(challenge_data.summary or "No summary")
-        grid.add_row("", rMarkdown(f"{summary_preview}"), f"{icons.HISTORY} [dim]{time_formatted.replace(' ago', '')}[/dim]")
+        grid.add_row("", Panel(rMarkdown(f"{summary_preview}")))
         return Option(grid, id=challenge_id)
 
     def _get_challenges_for_mode(self) -> dict[str, Any]:
@@ -329,7 +352,11 @@ class ChallengesTab(Vertical, BaseTab):
         try:
             challenges_data = await self.vault.client.get_user_challenges_data(member_only=False, owned_filter=None, page=page)
             # Convertir los datos de la API al formato esperado
-            page_collection = ChallengeCollection.from_api_data(challenges_data=challenges_data, user=self.vault.user, tasks=self.vault.tasks)  # Asumiendo que tienes user collection  # Asumiendo que tienes task collection
+            page_collection = ChallengeCollection.from_api_data(
+                challenges_data=challenges_data,
+                user=self.vault.user,
+                tasks=self.vault.tasks,
+            )  # Asumiendo que tienes user collection  # Asumiendo que tienes task collection
             # Guardar datos raw para joins posteriores
             self.public_challenges_raw = {}
             for ch in challenges_data:
@@ -344,7 +371,12 @@ class ChallengesTab(Vertical, BaseTab):
 
     def compose(self) -> ComposeResult:
         """Compose the main challenges UI."""
-        mode_titles = {"mine": f"{icons.GOAL} My Challenges", "owned": f"{icons.CROWN} Owned Challenges", "joined": f"{icons.CHECK} Joined Challenges", "public": f"{icons.GLOBE} Public Challenges"}
+        mode_titles = {
+            "mine": f"{icons.GOAL} My Challenges",
+            "owned": f"{icons.CROWN} Owned Challenges",
+            "joined": f"{icons.CHECK} Joined Challenges",
+            "public": f"{icons.GLOBE} Public Challenges",
+        }
         title = mode_titles.get(self.current_mode, f"{icons.GOAL} Challenges")
         if self.current_mode == "public" and self.current_page > 0:
             title += f" (Page {self.current_page + 1})"
@@ -354,7 +386,12 @@ class ChallengesTab(Vertical, BaseTab):
         yield my_select
         current_challenges = self._get_challenges_for_mode()
         if not current_challenges:
-            empty_messages = {"mine": "No challenges yet", "owned": "You don't own any challenges", "joined": "You haven't joined any challenges", "public": "No public challenges available"}
+            empty_messages = {
+                "mine": "No challenges yet",
+                "owned": "You don't own any challenges",
+                "joined": "You haven't joined any challenges",
+                "public": "No public challenges available",
+            }
             yield Label(empty_messages.get(self.current_mode, "No challenges available"), classes="center-text empty-state")
             return
         challenges_options = list(starmap(self.format_challenge_option, current_challenges.items()))
@@ -386,7 +423,7 @@ class ChallengesTab(Vertical, BaseTab):
             else:
                 challenge_data = self.get_challenge(challenge_id)
             if challenge_data:
-                detail_screen = ChallengeDetailScreen(challenge_data)
+                detail_screen = ChallengeDetailScreen(cast("ChallengeInfo", challenge_data))
                 await self.app.push_screen(detail_screen)
             else:
                 self.notify(f"{icons.ERROR} Challenge not found", severity="error")

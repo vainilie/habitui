@@ -9,7 +9,7 @@ from textual import work
 from textual.binding import Binding
 from textual.widgets import Input, Label, Static, ListItem, ListView, Collapsible
 from textual.reactive import reactive
-from textual.containers import Vertical, Horizontal, VerticalScroll
+from textual.containers import Vertical, VerticalScroll
 
 from box import Box
 
@@ -20,7 +20,11 @@ from habitui.tui.generic.base_tab import BaseTab, _get_class_icon
 from habitui.tui.modals.party_modal import SpellSelectionScreen, create_party_message_modal
 from habitui.core.models.message_model import PartyMessage
 from habitui.tui.generic.confirm_modal import GenericConfirmModal
-from habitui.tui.generic.dashboard_panels import Panel, create_info_panel, create_dashboard_row
+from habitui.tui.generic.dashboard_panels import (
+    Panel,
+    create_info_panel as cip,
+    create_dashboard_row as cdr,
+)
 
 
 if TYPE_CHECKING:
@@ -33,7 +37,12 @@ class PartyTab(BaseTab):
     """Displays and manages the party's information, stats, and chat."""
 
     # ─── Configuration ─────────────────────────────────────────────────────────────
-    BINDINGS: list[Binding] = [Binding("e", "edit_message", "Message"), Binding("s", "cast_spell", "Spell"), Binding("j", "join_quest", "Join Quest"), Binding("r", "refresh_data", "Refresh")]
+    BINDINGS: list[Binding] = [
+        Binding("e", "edit_message", "Message"),
+        Binding("s", "cast_spell", "Spell"),
+        Binding("j", "join_quest", "Join Quest"),
+        Binding("r", "refresh_data", "Refresh"),
+    ]
     party_chat_info: reactive[list[PartyMessage]] = reactive(list, recompose=True)
     party_chat_user: reactive[list[PartyMessage]] = reactive(list, recompose=True)
     user_collection: reactive[Box] = reactive(Box, recompose=True)
@@ -46,64 +55,72 @@ class PartyTab(BaseTab):
         log.info("PartyTab: __init__ called")
         self.party = self.vault.ensure_party_loaded()
         self.user = self.vault.ensure_user_loaded()
-        self.game_content = self.vault.ensure_game_content_loaded()
-        self.party_collection = Box(self.party.get_display_data())
-        self.user_collection = Box(self.user.get_display_data())
-        self.party_chat_info = self.party.get_system_messages(from_quest_start=True)
-        self.party_chat_user = self.party.get_user_messages()
+        self.gc = self.vault.ensure_game_content_loaded()
+        self.pc = Box(self.party.get_display_data())
+        self.uc = Box(self.user.get_display_data())
+        self.pci = self.party.get_system_messages(from_quest_start=True)
+        self.pcu = self.party.get_user_messages()
 
     # ─── UI Composition ────────────────────────────────────────────────────────────
     def compose(self) -> ComposeResult:
         """Compose the layout using the new dashboard components."""
         log.info("PartyTab: compose() called")
         with VerticalScroll(classes="dashboard-main-container"):
-            with Horizontal(classes="dashboard-panel-row"):
-                yield self._create_party_overview_panel()
-                yield self._create_spells_panel()
+            yield self._create_party_overview_panel()
+            yield self._create_spells_panel()
             yield from self._create_chat_sections()
             yield self._create_description_section()
 
     def _create_party_overview_panel(self) -> Panel:
         """Create the party overview panel using new components."""
         rows = [
-            create_dashboard_row(value=f"Your party is {self.party_collection.display_name}", icon="NORTH_STAR", element_id="party-overview-message"),
-            create_dashboard_row(value=f"{self.party_collection.leader_username} is leading {self.party_collection.member_count} members", icon="SOCIAL", element_id="party-leader-info"),
+            cdr(value=f"Your party is {self.pc.display_name}", icon="NORTH_STAR", element_id="party-overview-message"),
+            cdr(value=f"{self.pc.leader_username} is leading {self.pc.member_count} members", icon="SOCIAL", element_id="party-leader-info"),
         ]
-        if self.party_collection.has_quest is True:
-            quest_data = self.user.get_current_quest_data(self.game_content)
+        if self.pc.has_quest is True:
+            quest_data = self.user.get_current_quest_data(self.gc)
             if quest_data:
-                rsvp = "RSVP" if self.user_collection.get("rsvp", False) is True else ""
+                rsvp = "RSVP" if self.uc.get("rsvp", False) is True else ""
                 quest_name = f"{rsvp} {quest_data.text}"
-                rows.append(create_dashboard_row(label="Quest", value=quest_name, element_id="quest-name-row"))
+                rows.append(cdr(label="Quest", value=quest_name, element_id="quest-name-row", icon="QUEST"))
                 if quest_data.boss_name:
-                    progress_value = round(self.party_collection.quest_hp)
+                    progress_value = round(self.pc.quest_hp)
                     progress_total = quest_data.boss_hp if quest_data.boss_hp > 0 else 100
-                    rows.append(create_dashboard_row(label="Boss HP", value=progress_value, progress_total=progress_total, icon="BEAT", element_id="quest-hp-row"))
+                    rows.append(cdr(label="Boss HP", value=progress_value, progress_total=progress_total, icon="BEAT", element_id="quest-hp-row"))
                 elif quest_data.has_collect:
                     total_needed = sum(item.get("count", 0) for item in quest_data.collect_items)
-                    total_collected = sum(self.party_collection.quest_collect.values()) if self.party_collection.quest_collect else 0
-                    rows.append(create_dashboard_row(label="Items", value=total_collected, progress_total=total_needed, icon="BEAT", element_id="quest-collect-row"))
-                status_icon = icons.QUEST if (self.party_collection.quest_active) else icons.TIMELAPSE
+                    total_collected = sum(self.pc.quest_collect.values()) if self.pc.quest_collect else 0
+                    rows.append(cdr(label="Items", value=total_collected, progress_total=total_needed, icon="BEAT", element_id="quest-collect-row"))
+                status_icon = icons.QUEST if (self.pc.quest_active) else icons.TIMELAPSE
                 rows.extend(
                     [
-                        create_dashboard_row(label="Joined", value=str(self.party_collection.quest_members), icon="SOCIAL", element_id="quest-participants-row"),
-                        create_dashboard_row(label="Status", value=status_icon, icon="CLOCK", element_id="quest-status-row"),
-                        create_dashboard_row(label="Up", value=str(self.party_collection.quest_up), icon="UP", element_id="quest-up-votes-row"),
-                        create_dashboard_row(label="Down", value=str(self.party_collection.quest_down), icon="DOWN", element_id="quest-down-votes-row"),
+                        cdr(label="Joined", value=str(self.pc.quest_members), icon="SOCIAL", element_id="quest-participants-row"),
+                        cdr(label="Status", value=status_icon, icon="CLOCK", element_id="quest-status-row"),
+                        cdr(label="Up", value=str(self.pc.quest_up), icon="UP", element_id="quest-up-votes-row"),
+                        cdr(label="Down", value=str(self.pc.quest_down), icon="DOWN", element_id="quest-down-votes-row"),
                     ],
                 )
-        return create_info_panel(*rows, title="Overview", title_icon="CAT", element_id="party-overview-panel")
+        return cip(*rows, title="Overview", title_icon="CAT", element_id="party-overview-panel")
 
     def _create_spells_panel(self) -> Panel:
         """Create the spells panel using new components."""
         spell_info = self._get_spell_info()
         if not spell_info or (not spell_info.get("affordable") and not spell_info.get("non_affordable")):
-            return create_info_panel(create_dashboard_row(value="No spells available for your class", icon="INFO", element_id="no-spells-message"), title="Available Spells", title_icon="WAND", element_id="available-spells-panel")
+            return cip(
+                cdr(value="No spells available for your class", icon="INFO", element_id="no-spells-message"),
+                title="Available Spells",
+                title_icon="WAND",
+                element_id="available-spells-panel",
+            )
         affordable = spell_info.get("affordable", [])
         non_affordable = spell_info.get("non_affordable", [])
         total = len(affordable) + len(non_affordable)
-        info_row = create_dashboard_row(value=f"{len(affordable)}/{total} spells available", icon="WAND", element_id="spells-count-info")
-        spell_container = Panel(ListView(*self._create_spell_items(affordable, non_affordable), id="spells-display-area"), css_classes="dashboard-panel", element_id="spell-list-container")
+        info_row = cdr(value=f"{len(affordable)}/{total} spells available", icon="WAND", element_id="spells-count-info")
+        spell_container = Panel(
+            ListView(*self._create_spell_items(affordable, non_affordable), id="spells-display-area"),
+            css_classes="dashboard-panel",
+            element_id="spell-list-container",
+        )
         return Panel(info_row, spell_container, title="Available Spells", title_icon="WAND", element_id="available-spells-panel")
 
     def _create_spell_items(self, affordable: list, non_affordable: list) -> list[ListItem]:
@@ -115,7 +132,13 @@ class PartyTab(BaseTab):
                 spell = all_spells[i - 1]
                 is_affordable = spell in affordable
                 css_class = "affordable-spell" if is_affordable else "unaffordable-spell"
-                spell_slot = Panel(Label(spell.notes, classes="value", id=f"spell-description-{i}"), css_classes=f"spell-slot {css_class}", element_id=f"spell-slot-{i}", title=f"{icons.WAND} {spell.text}", title_icon="WAND")
+                spell_slot = Panel(
+                    Label(spell.notes, classes="value", id=f"spell-description-{i}"),
+                    css_classes=f"spell-slot {css_class}",
+                    element_id=f"spell-slot-{i}",
+                    title=f"{icons.WAND} {spell.text}",
+                    title_icon="WAND",
+                )
                 spell_slot.border_subtitle = f"{icons.MANA} {spell.mana} {icons.TARGET} {spell.target}"
                 spell_items.append(ListItem(spell_slot))
             else:
@@ -129,7 +152,7 @@ class PartyTab(BaseTab):
         with Collapsible(title="Chat", classes="text-box-collapsible"):
             yield Input(placeholder="Type your message...", id="chat-message-input", classes="input-line")
             party_container = ListView(classes="chat-section", id="party-user-chat-container")
-            user_messages = self.party_chat_user
+            user_messages = self.pcu
             party_container.border_title = f"{icons.CHAT} Party Chat ({len(user_messages)})"
             with party_container:
                 for message in user_messages:
@@ -140,7 +163,7 @@ class PartyTab(BaseTab):
                     yield msg_item
         with Collapsible(title="System", classes="text-box-collapsible"):
             system_container = Vertical(classes="chat-section", id="system-chat-container")
-            system_messages = self.party_chat_info
+            system_messages = self.pci
             system_container.border_title = f"{icons.ROBOT} System Messages ({len(system_messages)})"
             with system_container:
                 for message in system_messages:
@@ -151,11 +174,21 @@ class PartyTab(BaseTab):
 
     def _create_description_section(self) -> Collapsible:
         """Create the party description section."""
-        party_info = self.party_collection
+        party_info = self.pc
         party_name = party_info.display_name if party_info else "Loading..."
         biography_section = Collapsible(
-            Panel(Static(Markdown(parse_emoji(party_info.summary) if party_info else ""), id="party-summary-content", classes="markdown-box"), title="Summary", title_icon="FEATHER", element_id="party-summary-panel"),
-            Panel(Static(Markdown(parse_emoji(party_info.description) if party_info else ""), id="party-description-content", classes="markdown-box"), title="Description", title_icon="CARD", element_id="party-description-panel"),
+            Panel(
+                Static(Markdown(parse_emoji(party_info.summary) if party_info else ""), id="party-summary-content", classes="markdown-box"),
+                title="Summary",
+                title_icon="FEATHER",
+                element_id="party-summary-panel",
+            ),
+            Panel(
+                Static(Markdown(parse_emoji(party_info.description) if party_info else ""), id="party-description-content", classes="markdown-box"),
+                title="Description",
+                title_icon="CARD",
+                element_id="party-description-panel",
+            ),
             classes="text-box-collapsible",
             id="party-biography-collapsible",
             title="Description",
@@ -185,7 +218,7 @@ class PartyTab(BaseTab):
 
     async def action_join_quest(self) -> None:
         """Join the current party quest."""
-        if self.user_collection.rsvp is True:
+        if self.uc.rsvp is True:
             await self.app.habitica_api.accept_party_quest_invite()
             self.notify(f"{icons.CHECK} Joined Quest!", title="Party Quest", severity="information")
         else:
@@ -199,10 +232,10 @@ class PartyTab(BaseTab):
             await self.vault.update_party_only("smart", False, True)
             await self.vault.update_user_only("smart", False, True, False)
             party = self.vault.ensure_party_loaded()
-            self.party_collection = Box(party.get_display_data())
-            self.user_collection = self.user.get_display_data()
-            self.party_chat_info = party.get_system_messages(from_quest_start=True)
-            self.party_chat_user = party.get_user_messages()
+            self.pc = Box(party.get_display_data())
+            self.uc = self.user.get_display_data()
+            self.pci = party.get_system_messages(from_quest_start=True)
+            self.pcu = party.get_user_messages()
             self.mutate_reactive(PartyTab.party_collection)
             self.mutate_reactive(PartyTab.user_collection)
             self.mutate_reactive(PartyTab.party_chat_info)
@@ -221,7 +254,11 @@ class PartyTab(BaseTab):
             return
         message = result["message"].strip()
         if message:
-            confirm_modal = GenericConfirmModal(question=f"Send this message to your party?\n\n{message[:100]}{'...' if len(message) > 100 else ''}", title="Confirm Message", icon=icons.CHAT)
+            confirm_modal = GenericConfirmModal(
+                question=f"Send this message to your party?\n\n{message[:100]}{'...' if len(message) > 100 else ''}",
+                title="Confirm Message",
+                icon=icons.CHAT,
+            )
             confirmed = await self.app.push_screen(confirm_modal, wait_for_dismiss=True)
             if confirmed:
                 await self._send_message_via_api(message)
@@ -279,7 +316,11 @@ class PartyTab(BaseTab):
             log.error("No spell selected.")
             self.notify(f"{icons.ERROR} No spell selected.", title="Error", severity="error")
             return
-        confirm_modal = GenericConfirmModal(question=f"Cast '{selected_spell.text}' for {selected_spell.mana} MP?\n\n{selected_spell.notes}", title="Confirm Spell Cast", icon=icons.WAND)
+        confirm_modal = GenericConfirmModal(
+            question=f"Cast '{selected_spell.text}' for {selected_spell.mana} MP?\n\n{selected_spell.notes}",
+            title="Confirm Spell Cast",
+            icon=icons.WAND,
+        )
         confirmed = await self.app.push_screen(confirm_modal, wait_for_dismiss=True)
         if confirmed:
             await self._cast_spell_via_api(selected_spell.key, selected_spell.text)
@@ -305,8 +346,8 @@ class PartyTab(BaseTab):
     # ─── Helpers ───────────────────────────────────────────────────────────────────
     def _get_quest_data(self):
         """Get quest data from the content vault."""
-        return self.user.get_current_quest_data(content_vault=self.game_content)
+        return self.user.get_current_quest_data(content_vault=self.gc)
 
     def _get_spell_info(self):
         """Get available spell information for the user."""
-        return self.user.available_spells(content_vault=self.game_content)
+        return self.user.available_spells(content_vault=self.gc)

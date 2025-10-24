@@ -29,7 +29,18 @@ def build_border_title(icon: str | None = None, title: str | None = None) -> str
 
 
 class HorizontalRow(HorizontalGroup):
-    def __init__(self, *, value: Any = None, icon: str | None = None, label: str | None = None, progress_total: float | None = None, show_progress_text: bool = False, css_classes: str | None = None, element_id: str | None = None, **kwargs) -> None:
+    def __init__(
+        self,
+        *,
+        value: Any = None,
+        icon: str | None = None,
+        label: str | None = None,
+        progress_total: float | None = None,
+        show_progress_text: bool = False,
+        css_classes: str | None = None,
+        element_id: str | None = None,
+        **kwargs,
+    ) -> None:
         if isinstance(value, float):
             value = int(value)
         if isinstance(progress_total, float):
@@ -68,7 +79,17 @@ class HorizontalRow(HorizontalGroup):
 
 
 class Panel(VerticalGroup):
-    def __init__(self, *children, title: str | None = None, title_icon: str | None = None, subtitle: str | None = None, subtitle_icon: str | None = None, css_classes: str | None = None, element_id: str | None = None, **kwargs) -> None:
+    def __init__(
+        self,
+        *children,
+        title: str | None = None,
+        title_icon: str | None = None,
+        subtitle: str | None = None,
+        subtitle_icon: str | None = None,
+        css_classes: str | None = None,
+        element_id: str | None = None,
+        **kwargs,
+    ) -> None:
         self.children_widgets = children
         self.title_text = build_border_title(title_icon, title)
         self.subtitle_text = build_border_title(subtitle_icon, subtitle)
@@ -84,7 +105,18 @@ class Panel(VerticalGroup):
 
 
 class MarkdownWidget(Vertical):
-    def __init__(self, text: str, *, title: str | None = None, title_icon: str | None = None, subtitle: str | None = None, subtitle_icon: str | None = None, css_classes: str | None = None, element_id: str | None = None, **kwargs) -> None:
+    def __init__(
+        self,
+        text: str,
+        *,
+        title: str | None = None,
+        title_icon: str | None = None,
+        subtitle: str | None = None,
+        subtitle_icon: str | None = None,
+        css_classes: str | None = None,
+        element_id: str | None = None,
+        **kwargs,
+    ) -> None:
         self.text = text
         self.title_text = build_border_title(title_icon, title)
         self.subtitle_text = build_border_title(subtitle_icon, subtitle)
@@ -101,7 +133,18 @@ class MarkdownWidget(Vertical):
 
 
 class FlexibleContainer(Vertical):
-    def __init__(self, *children, container_type: Literal["normal", "collapsible", "scrollable"] = "normal", title: str | None = None, title_icon: str | None = None, subtitle: str | None = None, subtitle_icon: str | None = None, css_classes: str | None = None, element_id: str | None = None, **kwargs) -> None:
+    def __init__(
+        self,
+        *children,
+        container_type: Literal["normal", "collapsible", "scrollable"] = "normal",
+        title: str | None = None,
+        title_icon: str | None = None,
+        subtitle: str | None = None,
+        subtitle_icon: str | None = None,
+        css_classes: str | None = None,
+        element_id: str | None = None,
+        **kwargs,
+    ) -> None:
         self.children_widgets = children
         self.container_type = container_type
         self.title_text = build_border_title(title_icon, title)
