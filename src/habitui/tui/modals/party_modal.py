@@ -51,8 +51,8 @@ class SpellSelectionScreen(ModalScreen):
                     spell_options.append(Option(grid, id=spell.key, disabled=not affordable))
                 yield OptionList(*spell_options, id="spell_list", classes="input-box")
                 with Horizontal(classes="modal-buttons"):
-                    yield Button("Cancel", id="cancel", variant="default")
-                    yield Button("Cast Spell", id="cast", variant="success")
+                    yield Button("Cancel", id="cancel", variant="default", flat=True)
+                    yield Button("Cast Spell", id="cast", variant="success", flat=True)
 
     @on(OptionList.OptionSelected)
     def spell_selected(self, event: OptionList.OptionSelected) -> None:
@@ -90,8 +90,8 @@ class SpellConfirmScreen(ModalScreen):
                 yield Label("Cast this spell?")
                 yield Label(f"{self.spell_name} ({self.spell_mana} MP)", classes="spell-info")
                 with Horizontal(classes="modal-buttons"):
-                    yield Button("Cancel", id="cancel", variant="default")
-                    yield Button("Cast Spell", id="confirm", variant="success")
+                    yield Button("Cancel", id="cancel", variant="default", flat=True)
+                    yield Button("Cast Spell", id="confirm", variant="success", flat=True)
 
     @on(Button.Pressed, "#cancel")
     def cancel_spell(self) -> None:
@@ -109,5 +109,9 @@ def create_party_message_modal() -> GenericEditModal:
 
     :returns: An instance of `GenericEditModal` configured for party messaging.
     """
-    fields = [FormField(id="message", label="Message:", field_type=FieldType.TEXTAREA, placeholder="Type your message to the party...", language="markdown", classes="input-box", required=True)]
+    fields = [
+        FormField(
+            id="message", label="Message:", field_type=FieldType.TEXTAREA, placeholder="Type your message to the party...", language="markdown", classes="input-box", required=True
+        )
+    ]
     return GenericEditModal(title="Send Party Message", fields=fields, icon=icons.CHAT, auto_focus="message", track_changes=False)

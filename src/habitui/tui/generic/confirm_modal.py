@@ -21,7 +21,12 @@ if TYPE_CHECKING:
 class GenericConfirmModal(ModalScreen):
     """A reusable confirmation modal that can display changes and custom content."""
 
-    BINDINGS = [Binding("escape", "cancel", "Cancel", show=False), Binding("enter", "confirm", "Confirm", show=False), Binding("y", "confirm", "Yes", show=False), Binding("n", "cancel", "No", show=False)]
+    BINDINGS = [
+        Binding("escape", "cancel", "Cancel", show=False),
+        Binding("enter", "confirm", "Confirm", show=False),
+        Binding("y", "confirm", "Yes", show=False),
+        Binding("n", "cancel", "No", show=False),
+    ]
 
     def __init__(  # noqa: PLR0913, PLR0917
         self,
@@ -86,8 +91,8 @@ class GenericConfirmModal(ModalScreen):
 
     def compose(self) -> ComposeResult:
         """Create child widgets for the modal."""
-        with Container(classes="input-confirm"):
-            confirm_screen = Vertical(classes="input-confirm-body")
+        with Container(classes="input-confirm dialog"):
+            confirm_screen = Vertical(classes="input-confirm-body dialog-content")
             confirm_screen.border_title = f"{self.icon} {self.modal_title}"
             with confirm_screen:
                 yield Label(self.question, classes="changes-question")
@@ -96,13 +101,13 @@ class GenericConfirmModal(ModalScreen):
                         formatted_changes = self.changes_formatter(self.changes)
                         for label, value in formatted_changes:
                             with Horizontal(classes="changes-row"):
-                                yield Label(f"• {label}:", classes="changes-label")
+                                yield Label(f"• {label}: ", classes="changes-label")
                                 yield Label(value, classes="changes-value")
                 for x in self.custom_content:
                     yield Label(x)
                 with Horizontal(classes="modal-buttons"):
-                    yield Button(self.cancel_text, id="cancel", variant=self.cancel_variant)  # type: ignore
-                    yield Button(self.confirm_text, id="confirm", variant=self.confirm_variant)  # type: ignore
+                    yield Button(self.cancel_text, id="cancel", variant=self.cancel_variant, flat=True)  # type: ignore
+                    yield Button(self.confirm_text, id="confirm", variant=self.confirm_variant, flat=True)  # type: ignore
 
     @on(Button.Pressed, "#cancel")
     def cancel_action(self) -> None:
@@ -145,22 +150,45 @@ class HabiticaChangesFormatter:
 # ─── Usage Examples ────────────────────────────────────────────────────────────
 def show_habitica_confirm(changes: dict) -> GenericConfirmModal:
     """Show a confirmation modal for Habitica changes."""
-    return GenericConfirmModal(question="The following changes will be sent to Habitica:", changes=changes, changes_formatter=HabiticaChangesFormatter.format_changes, title="Confirm Changes", icon=icons.QUESTION_MARK)
+    return GenericConfirmModal(
+        question="The following changes will be sent to Habitica:",
+        changes=changes,
+        changes_formatter=HabiticaChangesFormatter.format_changes,
+        title="Confirm Changes",
+        icon=icons.QUESTION_MARK,
+    )
 
 
 def show_delete_confirm(item_name: str) -> GenericConfirmModal:
     """Show a confirmation modal for item deletion."""
-    return GenericConfirmModal(question=f"Are you sure you want to delete '{item_name}'? This action cannot be undone.", title="Confirm Deletion", confirm_text="Delete", cancel_text="Keep", confirm_variant="error", icon=icons.WARNING)
+    return GenericConfirmModal(
+        question=f"Are you sure you want to delete '{item_name}'? This action cannot be undone.",
+        title="Confirm Deletion",
+        confirm_text="Delete",
+        cancel_text="Keep",
+        confirm_variant="error",
+        icon=icons.WARNING,
+    )
 
 
 def show_exit_confirm(unsaved_changes: int) -> GenericConfirmModal:
     """Show a confirmation modal for exiting with unsaved changes."""
-    return GenericConfirmModal(question=f"You have {unsaved_changes} unsaved changes. Do you want to exit without saving?", title="Unsaved Changes", confirm_text="Exit Anyway", cancel_text="Stay", confirm_variant="warning", icon=icons.SAVE)
+    return GenericConfirmModal(
+        question=f"You have {unsaved_changes} unsaved changes. Do you want to exit without saving?",
+        title="Unsaved Changes",
+        confirm_text="Exit Anyway",
+        cancel_text="Stay",
+        confirm_variant="warning",
+        icon=icons.SAVE,
+    )
 
 
 def show_custom_confirm() -> GenericConfirmModal:
     """Show a confirmation modal with custom content."""
-    custom_widgets = [Static(f"{icons.WARNING} This will affect multiple users", classes="warning-text"), Static(f"{icons.BAR_CHART} Estimated processing time: 5 minutes", classes="info-text")]
+    custom_widgets = [
+        Static(f"{icons.WARNING} This will affect multiple users", classes="warning-text"),
+        Static(f"{icons.BAR_CHART} Estimated processing time: 5 minutes", classes="info-text"),
+    ]
     return GenericConfirmModal(question="Do you want to proceed with the bulk operation?", title="Bulk Operation", custom_content=custom_widgets, icon=icons.GEAR)
 
 

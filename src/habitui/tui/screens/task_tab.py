@@ -539,15 +539,40 @@ class TasksTab(Vertical, BaseTab):
                 value=self.current_mode,
                 id="mode_selector",
                 classes="control-select",
+                compact=True,
             )
-            yield Select(self.sort_options, value=self.current_sort, id="sort_selector", classes="control-select")
-            yield Select(self.filter_options, value=self.current_filter, id="filter_selector", classes="control-select")
+            yield Select(
+                self.sort_options,
+                value=self.current_sort,
+                id="sort_selector",
+                classes="control-select",
+                compact=True,
+            )
+            yield Select(
+                self.filter_options,
+                value=self.current_filter,
+                id="filter_selector",
+                classes="control-select",
+                compact=True,
+            )
             challenge_options = self.filter.get_challenge_filter_options(self.tasks)
             if len(challenge_options) > 1:
-                yield Select(challenge_options, value=self.current_challenge_filter, id="challenge_filter_selector", classes="control-select")
+                yield Select(
+                    challenge_options,
+                    value=self.current_challenge_filter,
+                    id="challenge_filter_selector",
+                    classes="control-select",
+                    compact=True,
+                )
             tag_options = self.filter.get_tag_filter_options(self.tasks)
             if len(tag_options) > 1:
-                yield Select(tag_options, value=self.current_tag_filter, id="tag_filter_selector", classes="control-select")
+                yield Select(
+                    tag_options,
+                    value=self.current_tag_filter,
+                    id="tag_filter_selector",
+                    classes="control-select",
+                    compact=True,
+                )
         if self.multiselect:
             with Horizontal(classes="multiselect-controls"):
                 yield Button("Score Selected", id="score_selected", variant="success")
@@ -926,7 +951,12 @@ class TasksTab(Vertical, BaseTab):
     {preview}
     ¿Qué hacer con TODAS las tareas del challenge?"""
         modal = GenericConfirmModal(
-            question=question, title="Challenge Broken - Desenlazar Todo", confirm_variant="warning", icon=icons.UNLINK, confirm_text="Mantener todas", cancel_text="Eliminar todas"
+            question=question,
+            title="Challenge Broken - Desenlazar Todo",
+            confirm_variant="warning",
+            icon=icons.UNLINK,
+            confirm_text="Mantener todas",
+            cancel_text="Eliminar todas",
         )
         user_choice = await self.app.push_screen(modal, wait_for_dismiss=True)
         if user_choice is None:  # Usuario canceló

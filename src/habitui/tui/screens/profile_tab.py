@@ -76,17 +76,16 @@ class ProfileTab(BaseTab):
             cdr(value=f"Today is {today}", icon="CALENDAR", element_id="current-date-info"),
             cdr(value=self.uc.sleep, icon="DUNGEON", element_id="sleep-status-row"),
             cdr(value=f"Day start: {self.uc.day_start}:00", icon="CLOCK_O", element_id="day-start-time-row"),
+            cdr(icon="CUT", value=f"User Damage: {round(self.vault.ensure_tasks_loaded().get_damage()[1], 1)}", element_id="userdmg-stat-row"),
         ]
+        if self.uc.needs_cron is True:
+            rows.append(cdr(value="Needs Cron", icon="WARNING", element_id="cron-status-row"))
 
         if self.uc.has_quest:
             rows.extend((
                 cdr(value=self.uc.quest_display_text, icon="DRAGON", element_id="current-quest-row"),
-                cdr(value=self.vault.ensure_tasks_loaded().get_damage()[0], element_id="partydam-stat-row", icon="CUT", label="Party damage"),
+                cdr(value=f"Party Damage: {round(self.vault.ensure_tasks_loaded().get_damage()[0], 1)}", element_id="partydam-stat-row", icon="CUT"),
             ))
-
-        if self.uc.needs_cron is True:
-            rows.append(cdr(value="Needs Cron", icon="WARNING", element_id="cron-status-row"))
-        rows.append(cdr(icon="ALARM", label="User damage", value=self.vault.ensure_tasks_loaded().get_damage()[1], element_id="userdmg-stat-row"))
 
         return cip(*rows, title="Overview", title_icon="CAT", element_id="user-overview-panel")
 
@@ -174,7 +173,7 @@ class ProfileTab(BaseTab):
         challenges_rows = [
             cdr(icon="USER", label="User Tasks", value=len(self.vault.ensure_tasks_loaded().get_owned_tasks()), element_id="owntasks-challenges-row"),
             cdr(icon="KEY", label="Challenge Tasks", value=len(self.vault.ensure_tasks_loaded().get_challenge_tasks()), element_id="chtasks-challenges-row"),
-            cdr(icon="TASK", label="Total tasks", value=len(self.vault.ensure_tasks_loaded().all_tasks), element_id="total-tasks-row"),
+            cdr(icon="TASK", label="Total Tasks", value=len(self.vault.ensure_tasks_loaded().all_tasks), element_id="total-tasks-row"),
             cdr(icon="TODAY", label="Due Dailies", value=len(self.vault.ensure_tasks_loaded().get_due_dailies()), element_id="today-dailies-row"),
         ]
 

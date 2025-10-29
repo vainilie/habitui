@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, cast
 from itertools import starmap
 
+from rich import box
 from rich.panel import Panel
 from rich.table import Table
 from rich.markdown import Markdown as rMarkdown
@@ -285,10 +286,15 @@ class ChallengesTab(Vertical, BaseTab):
         Binding("left", "prev_page", "← Prev"),
         Binding("r", "refresh_data", "Refresh"),
     ]
-    challenges: reactive[dict[str, Any]] = reactive(dict, recompose=True)
-    current_mode: reactive[str] = reactive("mine", recompose=True)
-    current_page: reactive[int] = reactive(0, recompose=True)
-    public_challenges_raw: reactive[dict[str, Any]] = reactive(dict, recompose=False)
+    # challenges: reactive[dict[str, Any]] = reactive(dict, recompose=True)
+    # current_mode: reactive[str] = reactive("mine", recompose=True)
+    # current_page: reactive[int] = reactive(0, recompose=True)
+    # public_challenges_raw: reactive[dict[str, Any]] = reactive(dict, recompose=False)
+    challenges: reactive[dict[str, Any]] = reactive(dict)  # Sin recompose=True
+    current_mode: reactive[str] = reactive("mine")  # Sin recompose=True
+    current_page: reactive[int] = reactive(0)  # Sin recompose=True
+    public_challenges_raw: reactive[dict[str, Any]] = reactive(dict)
+    page_size: int = 5  # Número de challenges por página
 
     def __init__(self) -> None:
         """Initialize the Challenges tab."""
@@ -308,19 +314,19 @@ class ChallengesTab(Vertical, BaseTab):
         :param challenge_data: The challenge data
         :returns: A configured Option widget
         """
-        grid = Table.grid(expand=True, padding=(0, 1))
-        grid.add_column(justify="center", ratio=1)
-        grid.add_column(justify="full", ratio=15)
+        grid = Table(expand=True, padding=(0, 0), box=box.SIMPLE)
         # Status icon based on whether user joined the challenge
         status_icon = icons.CHECK if getattr(challenge_data, "joined", False) else icons.BLANK
         # Third row: Summary and time
         time_formatted = DateTimeHandler(timestamp=challenge_data.created_at).format_time_difference()
-        grid.add_row(f"{status_icon}", f"[b]{parse_emoji(challenge_data.name)}[/b]")
+        grid.add_column(justify="center", ratio=1, header=status_icon)
+        grid.add_column(justify="full", ratio=15, header=parse_emoji(challenge_data.name))
+
         # Second row: Prize, leader, and member count
         info = [
             f"{icons.GEM} {challenge_data.prize!s:^4}",
             f"{icons.GROUP} {challenge_data.member_count!s:^4}",
-            f"{icons.HISTORY}[dim]{time_formatted.replace(' ago', '')}[/dim]",
+            f"{icons.HISTORY}[dim]{time_formatted.replace(' ago', '')!s:^4}[/dim]",
             f"{icons.SMALL_CIRCLE} {parse_emoji(challenge_data.leader_name or '')}",
             f"{icons.LEGACY if challenge_data.legacy else ''}{parse_emoji(challenge_data.group_name or '')}",
         ]
@@ -333,9 +339,9 @@ class ChallengesTab(Vertical, BaseTab):
         return Option(grid, id=challenge_id)
 
     def _get_challenges_for_mode(self) -> dict[str, Any]:
-        """Get challenges based on current mode."""
+        """Get ALL challenges based on current mode (not paginated)."""
         if self.current_mode == "public":
-            # Los challenges públicos se manejan por separado con paginación
+            # Los challenges públicos vienen paginados desde la API
             return self.challenges
         all_challenges = self.vault.ensure_challenges_loaded().get_all_challenges()
         if self.current_mode == "mine":
@@ -345,6 +351,34 @@ class ChallengesTab(Vertical, BaseTab):
         if self.current_mode == "joined":
             return self.vault.ensure_challenges_loaded().get_joined_challenges()
         return all_challenges
+
+    def _get_paginated_challenges(self, challenges_dict: dict[str, Any], page: int) -> dict[str, Any]:
+        """Get a page of challenges from a dictionary.
+
+        :param challenges_dict: Dictionary of all challenges
+        :param page: Page number (0-indexed)
+        :returns: Dictionary containing challenges for the requested page
+        """
+        if not challenges_dict:
+            return {}
+
+        # Convertir a lista para poder paginar
+        items = list(challenges_dict.items())
+        start_idx = page * self.page_size
+        end_idx = start_idx + self.page_size
+
+        # Obtener slice de la página
+        page_items = items[start_idx:end_idx]
+
+        return dict(page_items)
+
+    def _get_total_pages(self, challenges_dict: dict[str, Any]) -> int:
+        """Get total number of pages for a challenges dictionary."""
+        if not challenges_dict:
+            return 0
+        import math
+
+        return math.ceil(len(challenges_dict) / self.page_size)
 
     @work
     async def _load_public_challenges(self, page: int = 0) -> None:
@@ -358,12 +392,18 @@ class ChallengesTab(Vertical, BaseTab):
                 tasks=self.vault.tasks,
             )  # Asumiendo que tienes user collection  # Asumiendo que tienes task collection
             # Guardar datos raw para joins posteriores
-            self.public_challenges_raw = {}
+            new_raw = {}
             for ch in challenges_data:
-                self.public_challenges_raw[ch["id"]] = ch
-            # Actualizar challenges mostrados
+                new_raw[ch["id"]] = ch
+
+            # Actualizar datos sin disparar recompose
+            self.public_challenges_raw = new_raw
             self.challenges = page_collection.get_all_challenges()
             self.current_page = page
+
+            # Actualizar UI
+            self._update_challenges_ui()
+
             log.info(f"Loaded page {page} of public challenges")
         except Exception as e:
             log.error(f"Error loading public challenges: {e}")
@@ -382,7 +422,7 @@ class ChallengesTab(Vertical, BaseTab):
             title += f" (Page {self.current_page + 1})"
         yield Label(title, classes="tab-title")
         modes_options = [(f"{icons.GOAL} Mine", "mine"), (f"{icons.CROWN} Owned", "owned"), (f"{icons.CHECK} Joined", "joined"), (f"{icons.GLOBE} Public", "public")]
-        my_select: Select[str] = Select(modes_options, value=self.current_mode, id="mode_selector", classes="mode-selector-dropdown")
+        my_select: Select[str] = Select(modes_options, value=self.current_mode, id="mode_selector", classes="mode-selector-dropdown", compact=True)
         yield my_select
         current_challenges = self._get_challenges_for_mode()
         if not current_challenges:
@@ -395,7 +435,9 @@ class ChallengesTab(Vertical, BaseTab):
             yield Label(empty_messages.get(self.current_mode, "No challenges available"), classes="center-text empty-state")
             return
         challenges_options = list(starmap(self.format_challenge_option, current_challenges.items()))
-        yield OptionList(*challenges_options, id="challenges_list", classes="select-line")
+        challenge_widget = OptionList(*challenges_options, id="challenges_list", classes="select-line")
+        challenge_widget.border_title = title
+        yield challenge_widget
 
     @on(Select.Changed)
     def select_changed(self, event: Select.Changed) -> None:
@@ -451,38 +493,104 @@ class ChallengesTab(Vertical, BaseTab):
         """Show all my challenges."""
         self.current_mode = "mine"
         self.current_page = 0
-        self.challenges = self._get_challenges_for_mode()
+        all_challenges = self._get_challenges_for_mode()
+        self.challenges = self._get_paginated_challenges(all_challenges, 0)
+        self._update_challenges_ui()
 
     def action_challenges_owned(self) -> None:
         """Show challenges I own."""
         self.current_mode = "owned"
         self.current_page = 0
-        self.challenges = self._get_challenges_for_mode()
+        all_challenges = self._get_challenges_for_mode()
+        self.challenges = self._get_paginated_challenges(all_challenges, 0)
+        self._update_challenges_ui()
 
     def action_challenges_joined(self) -> None:
         """Show challenges I've joined."""
         self.current_mode = "joined"
         self.current_page = 0
-        self.challenges = self._get_challenges_for_mode()
+        all_challenges = self._get_challenges_for_mode()
+        self.challenges = self._get_paginated_challenges(all_challenges, 0)
+        self._update_challenges_ui()
 
     def action_challenges_public(self) -> None:
         """Show public challenges."""
         self.current_mode = "public"
         self.current_page = 0
-        self.call_after_refresh(lambda: self._load_public_challenges(0))
+        self._load_public_challenges(0)
 
     def action_next_page(self) -> None:
-        """Next page (public challenges only)."""
+        """Next page (all modes)."""
         if self.current_mode == "public":
-            self.call_after_refresh(lambda: self._load_public_challenges(self.current_page + 1))
+            # Para públicos, cargar desde API
+            self._load_public_challenges(self.current_page + 1)
+        else:
+            # Para otros modos, paginar localmente
+            all_challenges = self._get_challenges_for_mode()
+            total_pages = self._get_total_pages(all_challenges)
+
+            if self.current_page < total_pages - 1:
+                self.current_page += 1
+                self.challenges = self._get_paginated_challenges(all_challenges, self.current_page)
+                self._update_challenges_ui()
 
     def action_prev_page(self) -> None:
-        """Previous page (public challenges only)."""
-        if self.current_mode == "public" and self.current_page > 0:
-            self.call_after_refresh(lambda: self._load_public_challenges(self.current_page - 1))
+        """Previous page (all modes)."""
+        if self.current_page > 0:
+            if self.current_mode == "public":
+                # Para públicos, cargar desde API
+                self._load_public_challenges(self.current_page - 1)
+            else:
+                # Para otros modos, paginar localmente
+                self.current_page -= 1
+                all_challenges = self._get_challenges_for_mode()
+                self.challenges = self._get_paginated_challenges(all_challenges, self.current_page)
+                self._update_challenges_ui()
 
     def action_refresh_data(self) -> None:
         if self.current_mode == "public":
-            self.call_after_refresh(lambda: self._load_public_challenges(self.current_page))
+            self._load_public_challenges(self.current_page)
         else:
             self.refresh_data()
+
+    def _update_challenges_ui(self) -> None:
+        """Update UI without full recomposition."""
+        try:
+            # Actualizar título con info de paginación
+            mode_titles = {
+                "mine": f"{icons.GOAL} My Challenges",
+                "owned": f"{icons.CROWN} Owned Challenges",
+                "joined": f"{icons.CHECK} Joined Challenges",
+                "public": f"{icons.GLOBE} Public Challenges",
+            }
+            title = mode_titles.get(self.current_mode, f"{icons.GOAL} Challenges")
+
+            # Agregar info de página si no es la primera
+            if self.current_page > 0:
+                title += f" (Page {self.current_page + 1})"
+
+            # Si no es público, agregar total de páginas
+            if self.current_mode != "public":
+                all_challenges = self._get_challenges_for_mode()
+                total_pages = self._get_total_pages(all_challenges)
+                if total_pages > 1:
+                    title += f"/{total_pages}"
+
+            label = self.query_one(Label)
+            label.update(title)
+
+            # Actualizar OptionList
+            option_list = self.query_one("#challenges_list", OptionList)
+            option_list.clear_options()
+            option_list.border_title = title
+
+            current_challenges = self.challenges
+            if current_challenges:
+                challenges_options = list(
+                    starmap(self.format_challenge_option, current_challenges.items()),
+                )
+                option_list.add_options(challenges_options)
+        except Exception as e:
+            log.error(f"Error updating UI: {e}")
+            # Si falla la actualización manual, hacer recompose completo
+            self.refresh()

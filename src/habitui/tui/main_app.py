@@ -56,7 +56,6 @@ class HabiTUI(App):
         (0, "-narrow"),
         (40, "-normal"),
         (80, "-wide"),
-        (120, "-very-wide"),
     ]
 
     def __init__(self) -> None:

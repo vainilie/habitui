@@ -85,7 +85,17 @@ class GenericEditModal(ModalScreen):
 
     BINDINGS = [Binding("escape", "cancel", "Cancel", show=False), Binding("ctrl+s", "save", "Save", show=False)]
 
-    def __init__(self, title: str, fields: list[FormField], original_data: dict[str, Any] | None = None, save_text: str = "Save", cancel_text: str = "Cancel", icon: str = icons.EDIT, track_changes: bool = True, auto_focus: str | None = None) -> None:  # noqa: PLR0917
+    def __init__(
+        self,
+        title: str,
+        fields: list[FormField],
+        original_data: dict[str, Any] | None = None,
+        save_text: str = "Save",
+        cancel_text: str = "Cancel",
+        icon: str = icons.EDIT,
+        track_changes: bool = True,
+        auto_focus: str | None = None,
+    ) -> None:
         """Initialize the GenericEditModal.
 
         :param title: The title displayed at the top of the modal.
@@ -110,8 +120,8 @@ class GenericEditModal(ModalScreen):
 
     def compose(self) -> ComposeResult:  # noqa: C901, PLR0912
         """Compose the child widgets for the modal screen."""
-        with Container(classes="input-edit"):
-            input_screen = Vertical(classes="input-edit-body")
+        with Container(classes="input-edit dialog"):
+            input_screen = Vertical(classes="input-edit-body dialog-content")
             input_screen.border_title = f"{self.icon} {self.modal_title}"
             with input_screen:
                 for field in self.fields:
@@ -161,8 +171,8 @@ class GenericEditModal(ModalScreen):
                         yield Label(field.help_text, classes="input-help")
                 # Buttons
                 with Horizontal(classes="modal-buttons"):
-                    yield Button(self.cancel_text, id="cancel", variant="default")
-                    yield Button(self.save_text, id="save", variant="success")
+                    yield Button(self.cancel_text, id="cancel", variant="default", flat=True)
+                    yield Button(self.save_text, id="save", variant="success", flat=True)
 
     def on_mount(self) -> None:
         """Focus on specified field when modal opens."""
@@ -322,7 +332,15 @@ def create_spell_selection_modal(available_spells: list[Any], user_mp: int) -> G
         return title, subtitle, description
 
     fields = [
-        FormField(id="spell", label="Select a spell to cast:", field_type=FieldType.OPTION_LIST, option_items=available_spells, option_formatter=spell_formatter, classes="spell-selection", required=True),
+        FormField(
+            id="spell",
+            label="Select a spell to cast:",
+            field_type=FieldType.OPTION_LIST,
+            option_items=available_spells,
+            option_formatter=spell_formatter,
+            classes="spell-selection",
+            required=True,
+        ),
         FormField(id="current_mp_info", label=f"{icons.MANA} Current MP: {user_mp}", field_type=FieldType.STATIC, classes="mp-info"),
     ]
     return GenericEditModal(title="Cast Spell", fields=fields, icon=icons.WAND, track_changes=False, save_text="Cast", cancel_text="Cancel")
